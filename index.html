@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ff69b4">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+  <title>🎨 Painting With Roma</title>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>🎨 Painting With Roma</h1>
+      <p class="subtitle">Sube una foto y ajusta las guías con tus dedos</p>
+    </header>
+
+    <main>
+      <div class="upload-section">
+        <input type="file" id="fileInput" accept="image/*" capture="environment">
+        <label for="fileInput" class="upload-btn">📸 Seleccionar imagen</label>
+      </div>
+
+      <div class="canvas-section" id="canvasSection" style="display: none;">
+        <div class="canvas-wrapper">
+          <canvas id="originalCanvas"></canvas>
+          <canvas id="guideCanvas"></canvas>
+        </div>
+        <p class="hint">👆 1 dedo mueve • 2 dedos zoom/rotar</p>
+      </div>
+
+      <div class="placeholder" id="placeholder">
+        <div class="placeholder-icon">💅</div>
+        <p>Ninguna imagen seleccionada</p>
+        <p class="placeholder-hint">Sube una foto de uñas para comenzar</p>
+      </div>
+
+      <div class="controls" id="controls" style="display: none;">
+        <div class="control-row">
+          <label>🔵 Círculos:</label>
+          <input type="range" id="circles" min="1" max="10" value="4">
+          <span id="circlesValue">4</span>
+        </div>
+        <div class="control-row">
+          <label>📏 Espaciado:</label>
+          <input type="range" id="spacing" min="50" max="150" value="100">
+          <span id="spacingValue">100%</span>
+        </div>
+        <div class="control-row">
+          <label>📐 Tamaño:</label>
+          <input type="range" id="circleSize" min="30" max="150" value="100">
+          <span id="circleSizeValue">100%</span>
+        </div>
+        <div class="control-row">
+          <label>☀️ Radial:</label>
+          <input type="range" id="radialLines" min="0" max="16" value="8">
+          <span id="radialLinesValue">8</span>
+        </div>
+        <div class="control-row">
+          <label>📏 Opacidad:</label>
+          <input type="range" id="opacity" min="10" max="100" value="60">
+          <span id="opacityValue">60%</span>
+        </div>
+        <div class="control-row">
+          <label>🎨 Color:</label>
+          <input type="color" id="lineColor" value="#ffffff">
+        </div>
+        <div class="control-row">
+          <label>✏️ Grosor:</label>
+          <input type="range" id="lineWidth" min="1" max="4" value="2">
+          <span id="lineWidthValue">2</span>
+        </div>
+        <div class="control-row">
+          <button id="resetBtn" class="secondary-btn">🔄 Resetear</button>
+          <button id="downloadBtn" class="primary-btn">⬇️ Descargar</button>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
