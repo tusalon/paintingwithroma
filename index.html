@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
+  <meta name="theme-color" content="#1a1a2e">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
   <title>Painting With Roma</title>
@@ -11,8 +11,28 @@
 </head>
 <body>
   <div class="app-container">
-    <!-- Modo Recorte (se muestra al subir imagen) -->
-    <div class="crop-mode" id="cropMode">
+    
+    <div id="welcomeScreen" class="welcome-screen">
+      <div class="logo-container">
+        <div class="main-icon">
+          <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#ff69b4" stroke-width="1.5">
+            <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/>
+            <path d="M12 8v8m-4-4h8" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h1>Painting With Roma</h1>
+        <p>Diseño de Guías para Uñas</p>
+      </div>
+      <button id="uploadBtn" class="main-upload-btn">
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+          <path d="M19 7h-3V5.5A2.5 2.5 0 0 0 13.5 3h-3A2.5 2.5 0 0 0 8 5.5V7H5a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3ZM10 5.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V7h-4V5.5ZM12 17.5a3.5 3.5 0 1 1 3.5-3.5 3.5 3.5 0 0 1-3.5 3.5Z"/>
+        </svg>
+        Seleccionar Imagen
+      </button>
+      <input type="file" id="fileInput" accept="image/*" style="display: none;">
+    </div>
+
+    <div class="crop-mode" id="cropMode" style="display: none;">
       <div class="crop-header">
         <button id="cancelCrop" class="text-btn">Cancelar</button>
         <span>Encuadra la imagen</span>
@@ -31,81 +51,82 @@
             </div>
           </div>
         </div>
-        <p class="crop-hint">Pellizca para zoom • Arrastra para mover • Ajusta las esquinas</p>
       </div>
     </div>
 
-    <!-- Modo Trabajo (después de fijar) -->
     <div class="work-mode" id="workMode" style="display: none;">
       <div class="work-header">
-        <h1>🎨 Painting With Roma</h1>
-        <button id="menuToggle" class="icon-btn">☰</button>
+        <button id="backToCrop" class="icon-btn">
+          <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <div class="work-title">Diseñando</div>
+        <div class="work-actions">
+          <button id="toggleSettings" class="icon-btn active">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          </button>
+          <button id="downloadBtn" class="icon-btn highlight">
+            <svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          </button>
+        </div>
       </div>
-      
+
       <div class="work-workspace" id="workWorkspace">
         <canvas id="imageCanvas"></canvas>
         <canvas id="guideCanvas"></canvas>
       </div>
-      
-      <div class="work-footer">
-        <button id="newImageBtn" class="footer-btn">📸 Nueva</button>
-        <button id="resetGuideBtn" class="footer-btn">⟲ Guías</button>
-      </div>
-      
-      <!-- Botones flotantes para guías -->
-      <div class="guide-floating">
-        <button id="moveGuideBtn" class="fab-guide active" title="Mover guías">✋</button>
-      </div>
-    </div>
 
-    <!-- Panel de ajustes de guías -->
-    <div class="settings-panel" id="settingsPanel">
-      <div class="panel-header">
-        <span>Ajustes de guía</span>
-        <button id="closePanel" class="close-btn">✕</button>
-      </div>
-      <div class="panel-content">
-        <div class="control-row">
-          <label>🔵 Círculos:</label>
-          <input type="range" id="circles" min="1" max="10" value="4">
-          <span id="circlesValue">4</span>
+      <div class="settings-panel open" id="settingsPanel">
+        <div class="panel-header">
+          <span>Ajustes de Guía</span>
+          <button class="close-btn" id="closeSettings">×</button>
         </div>
-        <div class="control-row">
-          <label>📏 Espaciado:</label>
-          <input type="range" id="spacing" min="50" max="150" value="100">
-          <span id="spacingValue">100%</span>
+        <div class="panel-content">
+          <div class="control-row">
+            <label>⭕ Círculos:</label>
+            <input type="range" id="circles" min="1" max="8" value="4">
+            <span id="circlesValue">4</span>
+          </div>
+          <div class="control-row">
+            <label>📏 Espaciado:</label>
+            <input type="range" id="spacing" min="50" max="150" value="100">
+            <span id="spacingValue">100%</span>
+          </div>
+          <div class="control-row">
+            <label>📐 Tamaño:</label>
+            <input type="range" id="circleSize" min="30" max="150" value="100">
+            <span id="circleSizeValue">100%</span>
+          </div>
+          <div class="control-row">
+            <label>☀️ Radial:</label>
+            <input type="range" id="radialLines" min="0" max="16" value="8">
+            <span id="radialLinesValue">8</span>
+          </div>
+          <div class="control-row">
+            <label>📏 Opacidad:</label>
+            <input type="range" id="opacity" min="10" max="100" value="60">
+            <span id="opacityValue">60%</span>
+          </div>
+          <div class="control-row">
+            <label>🎨 Color:</label>
+            <input type="color" id="lineColor" value="#ffffff">
+          </div>
+          <div class="control-row">
+            <label>✏️ Grosor:</label>
+            <input type="range" id="lineWidth" min="1" max="4" value="2">
+            <span id="lineWidthValue">2px</span>
+          </div>
         </div>
-        <div class="control-row">
-          <label>📐 Tamaño:</label>
-          <input type="range" id="circleSize" min="30" max="150" value="100">
-          <span id="circleSizeValue">100%</span>
-        </div>
-        <div class="control-row">
-          <label>☀️ Radial:</label>
-          <input type="range" id="radialLines" min="0" max="16" value="8">
-          <span id="radialLinesValue">8</span>
-        </div>
-        <div class="control-row">
-          <label>📏 Opacidad:</label>
-          <input type="range" id="opacity" min="10" max="100" value="60">
-          <span id="opacityValue">60%</span>
-        </div>
-        <div class="control-row">
-          <label>🎨 Color:</label>
-          <input type="color" id="lineColor" value="#ffffff">
-        </div>
-        <div class="control-row">
-          <label>✏️ Grosor:</label>
-          <input type="range" id="lineWidth" min="1" max="4" value="2">
-          <span id="lineWidthValue">2</span>
-        </div>
-        <button id="downloadBtn" class="primary-btn-full">⬇️ Descargar imagen</button>
       </div>
     </div>
   </div>
-  
-  <input type="file" id="fileInput" accept="image/*" style="display: none;">
-  
+
   <script src="main.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js');
+      });
+    }
+  </script>
 </body>
 </html>
