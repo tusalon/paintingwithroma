@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // ===== ELEMENTOS DOM =====
+  // Elementos DOM
   const welcomeScreen = document.getElementById('welcomeScreen');
   const cropMode = document.getElementById('cropMode');
   const workMode = document.getElementById('workMode');
@@ -7,33 +7,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const cropImage = document.getElementById('cropImage');
   const panel = document.getElementById('settingsPanel');
 
-  // ===== VARIABLES GLOBALES =====
+  // Variables globales
   let originalImage = null;
   let guideOffsetX = 0, guideOffsetY = 0;
   let isMovingGuide = false;
   let lastTouchX, lastTouchY;
+  let circleCount = 3;
   
-  // Variables para el modo recorte
-  let cropImageScale = 1;
+  // Variables recorte
   let cropImageX = 0, cropImageY = 0;
   let frameX = 0, frameY = 0;
   let frameWidth = 0, frameHeight = 0;
-  let isDraggingImage = false;
-  let isDraggingFrame = false;
-  let isResizing = false;
-  let currentHandle = null;
-  let dragStartX, dragStartY;
-  let frameStartX, frameStartY;
-  let imageStartX, imageStartY;
+  let isDraggingImage = false, isDraggingFrame = false;
+  let dragStartX, dragStartY, frameStartX, frameStartY, imageStartX, imageStartY;
   
-  // Proporción estándar para uñas Ballerina/Acrílicas
   const NAIL_RATIO = 9/16;
 
-  // ===== INICIALIZACIÓN =====
-  document.getElementById('uploadBtn')?.addEventListener('click', () => fileInput.click());
+  // Inicialización
+  document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
 
-  // ===== CARGA DE IMAGEN =====
-  fileInput?.addEventListener('change', (e) => {
+  fileInput.addEventListener('change', (e) => {
     if (e.target.files[0]) {
       const reader = new FileReader();
       reader.onload = (ev) => {
@@ -43,10 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
           cropImage.src = ev.target.result;
           welcomeScreen.style.display = 'none';
           cropMode.style.display = 'flex';
-          
-          setTimeout(() => {
-            initializeCropMode();
-          }, 50);
+          setTimeout(() => initializeCropMode(), 50);
         };
         img.src = ev.target.result;
       };
@@ -60,7 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const workspaceWidth = workspace.clientWidth;
     const workspaceHeight = workspace.clientHeight;
     
-    // Calcular tamaño para mostrar imagen completa
     const imgRatio = originalImage.width / originalImage.height;
     let displayWidth, displayHeight;
     
@@ -72,17 +61,13 @@ document.addEventListener('DOMContentLoaded', () => {
       displayHeight = displayWidth / imgRatio;
     }
     
-    cropImageScale = displayWidth / originalImage.width;
-    
     wrapper.style.width = displayWidth + 'px';
     wrapper.style.height = displayHeight + 'px';
     
     cropImageX = (workspaceWidth - displayWidth) / 2;
     cropImageY = (workspaceHeight - displayHeight) / 2;
-    
     wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
     
-    // Crear marco de recorte 9:16
     const frame = document.getElementById('cropFrame');
     frameWidth = displayWidth * 0.75;
     frameHeight = frameWidth / NAIL_RATIO;
@@ -100,13 +85,11 @@ document.addEventListener('DOMContentLoaded', () => {
     frame.style.left = frameX + 'px';
     frame.style.top = frameY + 'px';
     
-    setupCropEvents(wrapper, frame, workspace);
+    setupCropEvents(wrapper, frame);
   }
 
-  function setupCropEvents(wrapper, frame, workspace) {
-    const handles = document.querySelectorAll('.handle');
-    
-    // ===== EVENTOS PARA MOVER EL MARCO (TOUCH) =====
+  function setupCropEvents(wrapper, frame) {
+    // Mover marco
     frame.addEventListener('touchstart', (e) => {
       e.stopPropagation();
       const touch = e.touches[0];
@@ -115,168 +98,68 @@ document.addEventListener('DOMContentLoaded', () => {
       dragStartY = touch.clientY;
       frameStartX = frameX;
       frameStartY = frameY;
-    }, { passive: false });
+    });
     
     frame.addEventListener('touchmove', (e) => {
       if (!isDraggingFrame) return;
       e.preventDefault();
-      e.stopPropagation();
-      
       const touch = e.touches[0];
-      const dx = touch.clientX - dragStartX;
-      const dy = touch.clientY - dragStartY;
-      
-      let newX = frameStartX + dx;
-      let newY = frameStartY + dy;
-      
-      const wrapperWidth = parseFloat(wrapper.style.width);
-      const wrapperHeight = parseFloat(wrapper.style.height);
-      
-      newX = Math.max(0, Math.min(newX, wrapperWidth - frameWidth));
-      newY = Math.max(0, Math.min(newY, wrapperHeight - frameHeight));
-      
-      frameX = newX;
-      frameY = newY;
-      
+      let newX = frameStartX + touch.clientX - dragStartX;
+      let newY = frameStartY + touch.clientY - dragStartY;
+      const w = parseFloat(wrapper.style.width);
+      const h = parseFloat(wrapper.style.height);
+      newX = Math.max(0, Math.min(newX, w - frameWidth));
+      newY = Math.max(0, Math.min(newY, h - frameHeight));
+      frameX = newX; frameY = newY;
       frame.style.left = newX + 'px';
       frame.style.top = newY + 'px';
-    }, { passive: false });
+    });
     
-    frame.addEventListener('touchend', (e) => {
-      isDraggingFrame = false;
-    });
+    frame.addEventListener('touchend', () => isDraggingFrame = false);
 
-    // ===== EVENTOS PARA REDIMENSIONAR (HANDLES) =====
-    handles.forEach(handle => {
-      handle.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
-        const touch = e.touches[0];
-        isResizing = true;
-        currentHandle = handle;
-        dragStartX = touch.clientX;
-        dragStartY = touch.clientY;
-        frameStartX = frameX;
-        frameStartY = frameY;
-        const startWidth = frameWidth;
-        const startHeight = frameHeight;
-        
-        const handleMove = (moveEvent) => {
-          if (!isResizing) return;
-          moveEvent.preventDefault();
-          moveEvent.stopPropagation();
-          
-          const moveTouch = moveEvent.touches[0];
-          const dx = moveTouch.clientX - dragStartX;
-          const dy = moveTouch.clientY - dragStartY;
-          
-          let newWidth = startWidth;
-          let newHeight = startHeight;
-          let newX = frameStartX;
-          let newY = frameStartY;
-          
-          if (currentHandle.classList.contains('br')) {
-            newWidth = Math.max(80, startWidth + dx);
-            newHeight = newWidth / NAIL_RATIO;
-          } else if (currentHandle.classList.contains('bl')) {
-            newWidth = Math.max(80, startWidth - dx);
-            newHeight = newWidth / NAIL_RATIO;
-            newX = frameStartX + (startWidth - newWidth);
-          } else if (currentHandle.classList.contains('tr')) {
-            newWidth = Math.max(80, startWidth + dx);
-            newHeight = newWidth / NAIL_RATIO;
-            newY = frameStartY + (startHeight - newHeight);
-          } else if (currentHandle.classList.contains('tl')) {
-            newWidth = Math.max(80, startWidth - dx);
-            newHeight = newWidth / NAIL_RATIO;
-            newX = frameStartX + (startWidth - newWidth);
-            newY = frameStartY + (startHeight - newHeight);
-          }
-          
-          const wrapperWidth = parseFloat(wrapper.style.width);
-          const wrapperHeight = parseFloat(wrapper.style.height);
-          
-          newX = Math.max(0, Math.min(newX, wrapperWidth - newWidth));
-          newY = Math.max(0, Math.min(newY, wrapperHeight - newHeight));
-          
-          frameWidth = newWidth;
-          frameHeight = newHeight;
-          frameX = newX;
-          frameY = newY;
-          
-          frame.style.width = newWidth + 'px';
-          frame.style.height = newHeight + 'px';
-          frame.style.left = newX + 'px';
-          frame.style.top = newY + 'px';
-        };
-        
-        const handleEnd = () => {
-          isResizing = false;
-          currentHandle = null;
-          document.removeEventListener('touchmove', handleMove);
-          document.removeEventListener('touchend', handleEnd);
-        };
-        
-        document.addEventListener('touchmove', handleMove, { passive: false });
-        document.addEventListener('touchend', handleEnd);
-      });
-    });
-
-    // ===== EVENTOS PARA MOVER LA IMAGEN =====
+    // Mover imagen
     wrapper.addEventListener('touchstart', (e) => {
       if (e.target === frame || frame.contains(e.target)) return;
-      if (e.target.classList.contains('handle')) return;
-      
       const touch = e.touches[0];
       isDraggingImage = true;
       dragStartX = touch.clientX;
       dragStartY = touch.clientY;
       imageStartX = cropImageX;
       imageStartY = cropImageY;
-    }, { passive: false });
+    });
     
     wrapper.addEventListener('touchmove', (e) => {
       if (!isDraggingImage) return;
       e.preventDefault();
-      
       const touch = e.touches[0];
-      const dx = touch.clientX - dragStartX;
-      const dy = touch.clientY - dragStartY;
-      
-      cropImageX = imageStartX + dx;
-      cropImageY = imageStartY + dy;
-      
+      cropImageX = imageStartX + touch.clientX - dragStartX;
+      cropImageY = imageStartY + touch.clientY - dragStartY;
       wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
-    }, { passive: false });
-    
-    wrapper.addEventListener('touchend', () => {
-      isDraggingImage = false;
     });
+    
+    wrapper.addEventListener('touchend', () => isDraggingImage = false);
   }
 
-  // ===== CANCELAR RECORTE =====
-  document.getElementById('cancelCrop')?.addEventListener('click', () => {
+  // Cancelar / Confirmar recorte
+  document.getElementById('cancelCrop').addEventListener('click', () => {
     cropMode.style.display = 'none';
     welcomeScreen.style.display = 'flex';
   });
 
-  // ===== CONFIRMAR RECORTE =====
-  document.getElementById('confirmCrop')?.addEventListener('click', () => {
+  document.getElementById('confirmCrop').addEventListener('click', () => {
     const wrapper = document.getElementById('cropWrapper');
-    
     const displayWidth = parseFloat(wrapper.style.width);
     const scaleRatio = originalImage.width / displayWidth;
     
-    const sx = frameX * scaleRatio;
-    const sy = frameY * scaleRatio;
-    const sWidth = frameWidth * scaleRatio;
-    const sHeight = frameHeight * scaleRatio;
-    
     const canvas = document.createElement('canvas');
-    canvas.width = sWidth;
-    canvas.height = sHeight;
+    canvas.width = frameWidth * scaleRatio;
+    canvas.height = frameHeight * scaleRatio;
     
     const ctx = canvas.getContext('2d');
-    ctx.drawImage(originalImage, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(originalImage, 
+      frameX * scaleRatio, frameY * scaleRatio, 
+      canvas.width, canvas.height, 
+      0, 0, canvas.width, canvas.height);
     
     setupWorkMode(canvas);
   });
@@ -289,287 +172,261 @@ document.addEventListener('DOMContentLoaded', () => {
     workMode.style.display = 'flex';
     
     setTimeout(() => {
-      const containerWidth = workWorkspace.clientWidth;
-      const containerHeight = workWorkspace.clientHeight;
+      const containerW = workWorkspace.clientWidth;
+      const containerH = workWorkspace.clientHeight;
       
-      let canvasWidth, canvasHeight;
-      if (containerWidth / containerHeight > NAIL_RATIO) {
-        canvasHeight = containerHeight;
-        canvasWidth = canvasHeight * NAIL_RATIO;
+      let canvasW, canvasH;
+      if (containerW / containerH > NAIL_RATIO) {
+        canvasH = containerH;
+        canvasW = canvasH * NAIL_RATIO;
       } else {
-        canvasWidth = containerWidth;
-        canvasHeight = canvasWidth / NAIL_RATIO;
+        canvasW = containerW;
+        canvasH = canvasW / NAIL_RATIO;
       }
       
-      imageCanvas.width = guideCanvas.width = canvasWidth;
-      imageCanvas.height = guideCanvas.height = canvasHeight;
+      imageCanvas.width = guideCanvas.width = canvasW;
+      imageCanvas.height = guideCanvas.height = canvasH;
       
-      imageCanvas.style.width = canvasWidth + 'px';
-      imageCanvas.style.height = canvasHeight + 'px';
-      guideCanvas.style.width = canvasWidth + 'px';
-      guideCanvas.style.height = canvasHeight + 'px';
+      imageCanvas.style.width = canvasW + 'px';
+      imageCanvas.style.height = canvasH + 'px';
+      guideCanvas.style.width = canvasW + 'px';
+      guideCanvas.style.height = canvasH + 'px';
       
-      imageCanvas.style.left = ((containerWidth - canvasWidth) / 2) + 'px';
-      guideCanvas.style.left = ((containerWidth - canvasWidth) / 2) + 'px';
+      imageCanvas.style.left = ((containerW - canvasW) / 2) + 'px';
+      guideCanvas.style.left = ((containerW - canvasW) / 2) + 'px';
       
       const imgCtx = imageCanvas.getContext('2d');
       imgCtx.fillStyle = '#000';
-      imgCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+      imgCtx.fillRect(0, 0, canvasW, canvasH);
       
-      const scale = Math.min(canvasWidth / croppedCanvas.width, canvasHeight / croppedCanvas.height);
-      const x = (canvasWidth - croppedCanvas.width * scale) / 2;
-      const y = (canvasHeight - croppedCanvas.height * scale) / 2;
+      const scale = Math.min(canvasW / croppedCanvas.width, canvasH / croppedCanvas.height);
+      const x = (canvasW - croppedCanvas.width * scale) / 2;
+      const y = (canvasH - croppedCanvas.height * scale) / 2;
       
-      imgCtx.drawImage(
-        croppedCanvas, 
-        0, 0, croppedCanvas.width, croppedCanvas.height,
-        x, y, croppedCanvas.width * scale, croppedCanvas.height * scale
-      );
+      imgCtx.drawImage(croppedCanvas, 0, 0, croppedCanvas.width, croppedCanvas.height,
+        x, y, croppedCanvas.width * scale, croppedCanvas.height * scale);
       
       cropMode.style.display = 'none';
-      
-      guideOffsetX = 0;
-      guideOffsetY = 0;
-      
-      drawCocolorcaStyleGuides();
+      drawGuides();
     }, 100);
   }
 
-  // ===== NAVEGACIÓN =====
-  document.getElementById('backToWelcome')?.addEventListener('click', () => {
-    if (confirm("¿Reiniciar?")) location.reload();
+  // Navegación
+  document.getElementById('backToWelcome').addEventListener('click', () => {
+    if (confirm('¿Reiniciar?')) location.reload();
   });
 
-  document.getElementById('toggleSettings')?.addEventListener('click', () => {
+  document.getElementById('toggleSettings').addEventListener('click', () => {
     panel.classList.toggle('open');
   });
   
-  document.getElementById('closeSettings')?.addEventListener('click', () => {
+  document.getElementById('closeSettings').addEventListener('click', () => {
     panel.classList.remove('open');
   });
 
-  // ===== MOVER GUÍAS =====
-  document.getElementById('moveGuideBtn')?.addEventListener('click', function() {
+  // Controles de círculos
+  document.getElementById('decreaseCircles').addEventListener('click', () => {
+    if (circleCount > 2) {
+      circleCount--;
+      document.getElementById('circleCount').textContent = circleCount;
+      drawGuides();
+    }
+  });
+  
+  document.getElementById('increaseCircles').addEventListener('click', () => {
+    if (circleCount < 4) {
+      circleCount++;
+      document.getElementById('circleCount').textContent = circleCount;
+      drawGuides();
+    }
+  });
+
+  // Mover guías
+  const guideCanvas = document.getElementById('guideCanvas');
+  
+  document.getElementById('moveGuideBtn').addEventListener('click', function() {
     isMovingGuide = !isMovingGuide;
     this.classList.toggle('active');
     this.textContent = isMovingGuide ? '📍 Fijar' : '✋ Mover Guías';
   });
 
-  const guideCanvas = document.getElementById('guideCanvas');
-  
   guideCanvas.addEventListener('touchstart', (e) => {
     if (!isMovingGuide) return;
-    const touch = e.touches[0];
-    lastTouchX = touch.clientX;
-    lastTouchY = touch.clientY;
-    e.preventDefault();
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
   });
   
   guideCanvas.addEventListener('touchmove', (e) => {
     if (!isMovingGuide) return;
     e.preventDefault();
-    
-    const touch = e.touches[0];
-    if (!lastTouchX) {
-      lastTouchX = touch.clientX;
-      lastTouchY = touch.clientY;
-      return;
-    }
-    
-    guideOffsetX += touch.clientX - lastTouchX;
-    guideOffsetY += touch.clientY - lastTouchY;
-    lastTouchX = touch.clientX;
-    lastTouchY = touch.clientY;
-    
-    drawCocolorcaStyleGuides();
-  });
-  
-  guideCanvas.addEventListener('touchend', () => {
-    lastTouchX = null;
-    lastTouchY = null;
+    guideOffsetX += e.touches[0].clientX - lastTouchX;
+    guideOffsetY += e.touches[0].clientY - lastTouchY;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+    drawGuides();
   });
 
-  // ===== RESETEAR POSICIÓN =====
-  document.getElementById('resetGuidesBtn')?.addEventListener('click', () => {
+  document.getElementById('resetGuidesBtn').addEventListener('click', () => {
     guideOffsetX = 0;
     guideOffsetY = 0;
-    drawCocolorcaStyleGuides();
+    drawGuides();
   });
 
-  // ===== GUÍAS ESTILO @cocolorca_nails =====
-  function drawCocolorcaStyleGuides() {
+  // Controles de estilo
+  ['lineWidth', 'opacity', 'lineColor'].forEach(id => {
+    document.getElementById(id).addEventListener('input', (e) => {
+      const val = document.getElementById(id + 'Value');
+      if (val) val.textContent = e.target.value;
+      drawGuides();
+    });
+  });
+
+  // Dibujar guías
+  function drawGuides() {
     const canvas = document.getElementById('guideCanvas');
     const ctx = canvas.getContext('2d');
-    const w = canvas.width;
-    const h = canvas.height;
-    
+    const w = canvas.width, h = canvas.height;
     if (w === 0 || h === 0) return;
     
     ctx.clearRect(0, 0, w, h);
     
-    const color = document.getElementById('lineColor')?.value || '#ffffff';
-    const opacity = parseInt(document.getElementById('opacity')?.value || '60') / 100;
-    const lineWidth = parseInt(document.getElementById('lineWidth')?.value || '2');
-    const eyeHeightPercent = parseInt(document.getElementById('eyeHeight')?.value || '32') / 100;
-    const chinHeightPercent = parseInt(document.getElementById('chinHeight')?.value || '72') / 100;
+    const color = document.getElementById('lineColor').value;
+    const opacity = document.getElementById('opacity').value / 100;
+    const lineWidth = parseInt(document.getElementById('lineWidth').value);
     
     const offsetX = guideOffsetX;
     const offsetY = guideOffsetY;
     
-    // Margen curvo (simula la forma de la uña)
-    const marginCurve = 0.15;
-    const leftMargin = w * marginCurve;
-    const rightMargin = w * (1 - marginCurve);
+    // Calcular tamaño de círculos
+    const circleRadius = (h * 0.7) / (circleCount * 1.8);
+    const spacing = circleRadius * 2.1;
+    const startY = h/2 - (spacing * (circleCount - 1)) / 2;
+    const centerX = w/2 + offsetX;
     
-    // ===== 1. LÍNEA CENTRAL VERTICAL (PUNTEADA) =====
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.setLineDash([5, 5]);
-    ctx.globalAlpha = opacity * 0.7;
+    // Bordes de seguridad
+    const safeMargin = circleRadius * 1.4;
+    const leftSafe = centerX - safeMargin;
+    const rightSafe = centerX + safeMargin;
+    
+    ctx.setLineDash([6, 6]);
     ctx.lineWidth = lineWidth;
-    ctx.moveTo(w/2 + offsetX, 0);
-    ctx.lineTo(w/2 + offsetX, h);
-    ctx.stroke();
-    
-    // ===== 2. LÍNEA DE OJOS (PUNTEADA) =====
-    const eyeY = h * eyeHeightPercent + offsetY;
-    ctx.beginPath();
     ctx.strokeStyle = color;
-    ctx.setLineDash([8, 6]);
     ctx.globalAlpha = opacity;
-    ctx.lineWidth = lineWidth;
-    ctx.moveTo(leftMargin + offsetX, eyeY);
-    ctx.lineTo(rightMargin + offsetX, eyeY);
+    
+    // Línea central vertical
+    ctx.beginPath();
+    ctx.moveTo(centerX, 0);
+    ctx.lineTo(centerX, h);
     ctx.stroke();
     
-    // ===== 3. LÍNEA DE MENTÓN (PUNTEADA) =====
-    const chinY = h * chinHeightPercent + offsetY;
+    // Bordes de seguridad
     ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.setLineDash([8, 6]);
-    ctx.moveTo(leftMargin + offsetX, chinY);
-    ctx.lineTo(rightMargin + offsetX, chinY);
+    ctx.moveTo(leftSafe, 0);
+    ctx.lineTo(leftSafe, h);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(rightSafe, 0);
+    ctx.lineTo(rightSafe, h);
     ctx.stroke();
     
-    // ===== 4. ÓVALO CENTRAL (Proporción del rostro) =====
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.setLineDash([4, 4]);
-    ctx.globalAlpha = opacity * 0.5;
+    // Círculos
+    ctx.setLineDash([6, 6]);
+    for (let i = 0; i < circleCount; i++) {
+      const circleY = startY + offsetY + i * spacing;
+      ctx.beginPath();
+      ctx.ellipse(centerX, circleY, circleRadius, circleRadius, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    
+    // Diámetros dentro de cada círculo
+    ctx.setLineDash([]);
     ctx.lineWidth = lineWidth * 0.8;
-    
-    const ovalCenterX = w/2 + offsetX;
-    const ovalCenterY = (eyeY + chinY) / 2;
-    const ovalRadiusX = (rightMargin - leftMargin) * 0.4;
-    const ovalRadiusY = (chinY - eyeY) * 0.6;
-    
-    ctx.ellipse(ovalCenterX, ovalCenterY, ovalRadiusX, ovalRadiusY, 0, 0, Math.PI * 2);
-    ctx.stroke();
-    
-    // ===== 5. CURVAS LATERALES (Forma de la uña) =====
-    ctx.beginPath();
-    ctx.strokeStyle = color;
-    ctx.setLineDash([]);
-    ctx.globalAlpha = opacity * 0.4;
-    ctx.lineWidth = lineWidth * 0.6;
-    
-    // Curva izquierda
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(leftMargin + offsetX, h/2, 0, h);
-    ctx.stroke();
-    
-    // Curva derecha
-    ctx.beginPath();
-    ctx.moveTo(w, 0);
-    ctx.quadraticCurveTo(rightMargin + offsetX, h/2, w, h);
-    ctx.stroke();
-    
-    // ===== 6. CÍRCULOS DE PROPORCIÓN =====
-    const circles = parseInt(document.getElementById('circles')?.value || '3');
-    if (circles > 0) {
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.setLineDash([3, 5]);
-      ctx.globalAlpha = opacity * 0.35;
-      ctx.lineWidth = 1;
-      
-      const spacing = (h * 0.2) / circles;
-      
-      for (let i = 1; i <= circles; i++) {
-        ctx.moveTo(ovalCenterX + i * spacing, ovalCenterY);
-        ctx.ellipse(ovalCenterX, ovalCenterY, i * spacing, i * spacing * 0.7, 0, 0, Math.PI * 2);
-      }
-      ctx.stroke();
-    }
-    
-    // ===== 7. LÍNEAS RADIALES =====
-    const radialLines = parseInt(document.getElementById('radialLines')?.value || '6');
-    if (radialLines > 0) {
-      ctx.beginPath();
-      ctx.strokeStyle = color;
-      ctx.setLineDash([2, 6]);
-      ctx.globalAlpha = opacity * 0.25;
-      ctx.lineWidth = 0.8;
-      
-      for (let i = 0; i < radialLines; i++) {
-        const angle = (i / radialLines) * Math.PI * 2;
-        const radius = ovalRadiusX * 1.8;
-        const x2 = ovalCenterX + Math.cos(angle) * radius;
-        const y2 = ovalCenterY + Math.sin(angle) * radius * 0.7;
-        
-        ctx.moveTo(ovalCenterX, ovalCenterY);
-        ctx.lineTo(x2, y2);
-      }
-      ctx.stroke();
-    }
-    
-    // ===== 8. ETIQUETAS (Estilo sutil) =====
-    ctx.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
-    ctx.fillStyle = color;
     ctx.globalAlpha = opacity * 0.8;
-    ctx.textAlign = 'center';
-    ctx.setLineDash([]);
     
-    ctx.fillText('👁', w/2 + offsetX - 15, eyeY - 5);
-    ctx.fillText('👁', w/2 + offsetX + 15, eyeY - 5);
-    ctx.fillText('💋', w/2 + offsetX, chinY + 15);
+    for (let i = 0; i < circleCount; i++) {
+      const circleY = startY + offsetY + i * spacing;
+      
+      // Horizontal
+      ctx.beginPath();
+      ctx.moveTo(centerX - circleRadius, circleY);
+      ctx.lineTo(centerX + circleRadius, circleY);
+      ctx.stroke();
+      
+      // Diagonales que rebotan
+      // Diagonal 1 (izquierda)
+      ctx.beginPath();
+      ctx.moveTo(centerX, circleY);
+      ctx.lineTo(leftSafe, circleY - circleRadius);
+      ctx.stroke();
+      
+      // Rebote de Diagonal 1
+      if (i > 0) {
+        const prevY = startY + offsetY + (i-1) * spacing;
+        ctx.beginPath();
+        ctx.moveTo(leftSafe, circleY - circleRadius);
+        ctx.lineTo(centerX, prevY);
+        ctx.stroke();
+      }
+      
+      // Diagonal 2 (derecha)
+      ctx.beginPath();
+      ctx.moveTo(centerX, circleY);
+      ctx.lineTo(rightSafe, circleY - circleRadius);
+      ctx.stroke();
+      
+      // Rebote de Diagonal 2
+      if (i > 0) {
+        const prevY = startY + offsetY + (i-1) * spacing;
+        ctx.beginPath();
+        ctx.moveTo(rightSafe, circleY - circleRadius);
+        ctx.lineTo(centerX, prevY);
+        ctx.stroke();
+      }
+      
+      // Diagonales inferiores
+      ctx.beginPath();
+      ctx.moveTo(centerX, circleY);
+      ctx.lineTo(leftSafe, circleY + circleRadius);
+      ctx.stroke();
+      
+      if (i < circleCount - 1) {
+        const nextY = startY + offsetY + (i+1) * spacing;
+        ctx.beginPath();
+        ctx.moveTo(leftSafe, circleY + circleRadius);
+        ctx.lineTo(centerX, nextY);
+        ctx.stroke();
+      }
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX, circleY);
+      ctx.lineTo(rightSafe, circleY + circleRadius);
+      ctx.stroke();
+      
+      if (i < circleCount - 1) {
+        const nextY = startY + offsetY + (i+1) * spacing;
+        ctx.beginPath();
+        ctx.moveTo(rightSafe, circleY + circleRadius);
+        ctx.lineTo(centerX, nextY);
+        ctx.stroke();
+      }
+    }
     
-    // Reset
-    ctx.setLineDash([]);
     ctx.globalAlpha = 1;
   }
 
-  // ===== CONECTAR CONTROLES =====
-  ['circles', 'radialLines', 'opacity', 'lineColor', 'lineWidth', 'eyeHeight', 'chinHeight'].forEach(id => {
-    const element = document.getElementById(id);
-    if (element) {
-      element.addEventListener('input', (e) => {
-        const valueEl = document.getElementById(id + 'Value');
-        if (valueEl) valueEl.textContent = e.target.value;
-        drawCocolorcaStyleGuides();
-      });
-    }
-  });
-
-  // ===== DESCARGAR =====
-  document.getElementById('downloadBtn')?.addEventListener('click', () => {
+  // Descargar
+  document.getElementById('downloadBtn').addEventListener('click', () => {
     const canvas = document.createElement('canvas');
-    const imgCanvas = document.getElementById('imageCanvas');
-    const guideCanvas = document.getElementById('guideCanvas');
-    
-    canvas.width = imgCanvas.width;
-    canvas.height = imgCanvas.height;
-    
+    const imgC = document.getElementById('imageCanvas');
+    const guideC = document.getElementById('guideCanvas');
+    canvas.width = imgC.width;
+    canvas.height = imgC.height;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#000';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(imgCanvas, 0, 0);
-    ctx.drawImage(guideCanvas, 0, 0);
-    
-    const link = document.createElement('a');
-    link.download = `cocolorca-guia-${Date.now()}.png`;
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    ctx.drawImage(imgC, 0, 0);
+    ctx.drawImage(guideC, 0, 0);
+    const a = document.createElement('a');
+    a.download = `guia-${Date.now()}.png`;
+    a.href = canvas.toDataURL();
+    a.click();
   });
 });

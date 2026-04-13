@@ -6,44 +6,34 @@
   <meta name="theme-color" content="#1a1a2e">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
-  <title>Painting With Roma - Guías para Uñas</title>
+  <title>Painting With Roma</title>
 </head>
 <body>
   <div class="app-container">
     
-    <!-- PANTALLA DE BIENVENIDA -->
+    <!-- BIENVENIDA -->
     <div id="welcomeScreen" class="welcome-screen">
       <div class="logo-container">
-        <div class="main-icon">
-          <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="#ff69b4" stroke-width="1.5">
-            <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Z"/>
-            <path d="M12 8v8m-4-4h8" stroke-linecap="round"/>
-            <path d="M7 7l10 10M17 7l-10 10" stroke-linecap="round"/>
-          </svg>
-        </div>
         <h1>Painting With Roma</h1>
-        <p>Guías profesionales para diseño de uñas</p>
-        <p class="subtitle">Proporción 9:16 · Ballerina Style</p>
+        <p>Guías para uñas Ballerina 9:16</p>
       </div>
       <button id="uploadBtn" class="main-upload-btn">
         <span>📷</span> Seleccionar Imagen
       </button>
       <input type="file" id="fileInput" accept="image/*" style="display: none;">
-      <p class="hint">Ideal para Princesas Disney y retratos</p>
     </div>
 
     <!-- MODO RECORTE -->
     <div class="crop-mode" id="cropMode" style="display: none;">
       <div class="crop-header">
         <button id="cancelCrop" class="text-btn">Cancelar</button>
-        <span>Encuadra el diseño <span style="color:#ff69b4; font-size:12px;">(9:16)</span></span>
+        <span>Encuadra (9:16)</span>
         <button id="confirmCrop" class="text-btn primary">Fijar ✓</button>
       </div>
       <div class="crop-workspace">
         <div class="crop-wrapper" id="cropWrapper">
           <img id="cropImage" draggable="false">
           <div class="crop-frame" id="cropFrame">
-            <div class="frame-guide-text">9:16</div>
             <div class="handle tl"></div>
             <div class="handle tr"></div>
             <div class="handle bl"></div>
@@ -51,19 +41,13 @@
           </div>
         </div>
       </div>
-      <div class="crop-instruction">
-        <span>👆 Arrastra para mover</span>
-        <span>🔲 Ajusta las esquinas</span>
-      </div>
     </div>
 
     <!-- MODO TRABAJO -->
     <div class="work-mode" id="workMode" style="display: none;">
       <div class="work-header">
         <button id="backToWelcome" class="icon-btn">✕</button>
-        <div class="work-title">
-          <span class="nail-type">💅 Ballerina 9:16</span>
-        </div>
+        <div class="work-title">💅 Ballerina 9:16</div>
         <div class="work-actions">
           <button id="toggleSettings" class="icon-btn">⚙️</button>
           <button id="downloadBtn" class="icon-btn highlight">⬇️</button>
@@ -78,61 +62,44 @@
       <!-- PANEL DE AJUSTES -->
       <div class="settings-panel" id="settingsPanel">
         <div class="panel-header">
-          <span>🎨 Guías Profesionales</span>
+          <span>🎨 Ajustes de Guía</span>
           <button class="close-btn" id="closeSettings">×</button>
         </div>
         <div class="panel-content">
+          
           <div class="control-section">
-            <h4>📐 Proporciones Faciales</h4>
-            <div class="control-row">
-              <label>👁️ Altura Ojos:</label>
-              <input type="range" id="eyeHeight" min="20" max="45" value="30">
-              <span id="eyeHeightValue">30%</span>
-            </div>
-            <div class="control-row">
-              <label>💋 Altura Mentón:</label>
-              <input type="range" id="chinHeight" min="60" max="85" value="75">
-              <span id="chinHeightValue">75%</span>
+            <h4>⭕ Círculos</h4>
+            <div class="circle-control">
+              <button id="decreaseCircles">−</button>
+              <span id="circleCount">3</span>
+              <button id="increaseCircles">+</button>
             </div>
           </div>
           
           <div class="control-section">
-            <h4>⭕ Guías de Trazado</h4>
+            <h4>🎨 Estilo</h4>
             <div class="control-row">
-              <label>Círculos:</label>
-              <input type="range" id="circles" min="0" max="6" value="3">
-              <span id="circlesValue">3</span>
-            </div>
-            <div class="control-row">
-              <label>☀️ Radiales:</label>
-              <input type="range" id="radialLines" min="0" max="16" value="8">
-              <span id="radialLinesValue">8</span>
-            </div>
-          </div>
-          
-          <div class="control-section">
-            <h4>🎨 Estilo Visual</h4>
-            <div class="control-row">
-              <label>📏 Opacidad:</label>
-              <input type="range" id="opacity" min="10" max="100" value="50">
-              <span id="opacityValue">50%</span>
-            </div>
-            <div class="control-row">
-              <label>🎨 Color:</label>
+              <label>Color:</label>
               <input type="color" id="lineColor" value="#ffffff">
             </div>
             <div class="control-row">
-              <label>✏️ Grosor:</label>
+              <label>Grosor:</label>
               <input type="range" id="lineWidth" min="1" max="5" value="2">
               <span id="lineWidthValue">2</span>
+            </div>
+            <div class="control-row">
+              <label>Opacidad:</label>
+              <input type="range" id="opacity" min="10" max="100" value="70">
+              <span id="opacityValue">70%</span>
             </div>
           </div>
           
           <div class="control-section">
-            <h4>✋ Ajuste de Posición</h4>
+            <h4>✋ Posición</h4>
             <button id="moveGuideBtn" class="secondary-btn-full">✋ Mover Guías</button>
-            <button id="resetGuidesBtn" class="secondary-btn-full">🔄 Resetear Posición</button>
+            <button id="resetGuidesBtn" class="secondary-btn-full">🔄 Centrar Guías</button>
           </div>
+          
         </div>
       </div>
     </div>

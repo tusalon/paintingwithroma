@@ -12,9 +12,6 @@ html, body {
   position: fixed;
   background: #000;
   color: white;
-}
-
-body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -24,13 +21,11 @@ body {
   position: relative;
 }
 
-/* ===== PANTALLA DE BIENVENIDA ===== */
+/* BIENVENIDA */
 .welcome-screen {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -41,29 +36,17 @@ body {
   text-align: center;
 }
 
-.logo-container {
-  margin-bottom: 20px;
-}
-
 .logo-container h1 {
-  font-size: 2.2rem;
-  margin-top: 15px;
+  font-size: 2rem;
   background: linear-gradient(45deg, #ff69b4, #ff8da1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 2px 10px rgba(255,105,180,0.3);
+  margin-bottom: 10px;
 }
 
 .logo-container p {
   color: #aaa;
-  margin: 5px 0;
-  font-size: 1rem;
-}
-
-.logo-container .subtitle {
-  color: #ff69b4;
-  font-size: 0.9rem;
-  margin-top: 5px;
+  margin-bottom: 30px;
 }
 
 .main-upload-btn {
@@ -79,27 +62,13 @@ body {
   gap: 12px;
   cursor: pointer;
   box-shadow: 0 10px 25px rgba(255, 105, 180, 0.3);
-  transition: transform 0.2s;
-  margin: 20px 0;
 }
 
-.main-upload-btn:active {
-  transform: scale(0.95);
-}
-
-.hint {
-  color: #666;
-  font-size: 0.85rem;
-  margin-top: 20px;
-}
-
-/* ===== MODO RECORTE ===== */
+/* MODO RECORTE */
 .crop-mode {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   background: #000;
   z-index: 10;
   display: flex;
@@ -112,7 +81,6 @@ body {
   justify-content: space-between;
   align-items: center;
   background: rgba(0,0,0,0.9);
-  border-bottom: 1px solid #222;
 }
 
 .text-btn {
@@ -143,61 +111,31 @@ body {
 
 .crop-frame {
   position: absolute;
-  border: 3px solid #ff69b4;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 30px rgba(255,105,180,0.3);
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
   border-radius: 20px;
-  pointer-events: none;
-}
-
-.frame-guide-text {
-  position: absolute;
-  top: -25px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #ff69b4;
-  font-size: 12px;
-  font-weight: bold;
-  text-shadow: 0 0 10px rgba(0,0,0,0.8);
-  background: rgba(0,0,0,0.5);
-  padding: 2px 8px;
-  border-radius: 10px;
-  white-space: nowrap;
+  touch-action: none;
 }
 
 .handle {
   position: absolute;
-  width: 28px;
-  height: 28px;
-  background: #ff69b4;
+  width: 30px; height: 30px;
+  background: #fff;
   border-radius: 50%;
-  border: 3px solid white;
-  pointer-events: auto;
-  cursor: nwse-resize;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+  border: 2px solid rgba(0,0,0,0.3);
+  touch-action: none;
 }
 
-.handle.tl { top: -14px; left: -14px; cursor: nw-resize; }
-.handle.tr { top: -14px; right: -14px; cursor: ne-resize; }
-.handle.bl { bottom: -14px; left: -14px; cursor: sw-resize; }
-.handle.br { bottom: -14px; right: -14px; cursor: se-resize; }
+.handle.tl { top: -15px; left: -15px; }
+.handle.tr { top: -15px; right: -15px; }
+.handle.bl { bottom: -15px; left: -15px; }
+.handle.br { bottom: -15px; right: -15px; }
 
-.crop-instruction {
-  padding: 15px;
-  display: flex;
-  justify-content: space-around;
-  background: rgba(0,0,0,0.8);
-  color: #888;
-  font-size: 0.9rem;
-  border-top: 1px solid #222;
-}
-
-/* ===== MODO TRABAJO ===== */
+/* MODO TRABAJO */
 .work-mode {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -214,12 +152,8 @@ body {
   border-bottom: 1px solid #222;
 }
 
-.nail-type {
-  background: #ff69b4;
-  color: white;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 0.85rem;
+.work-title {
+  color: #ff69b4;
   font-weight: 600;
 }
 
@@ -227,19 +161,10 @@ body {
   background: rgba(255,255,255,0.05);
   border: none;
   color: white;
-  width: 42px;
-  height: 42px;
+  width: 42px; height: 42px;
   border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   font-size: 1.2rem;
   cursor: pointer;
-  transition: background 0.2s;
-}
-
-.icon-btn:active {
-  background: rgba(255,255,255,0.1);
 }
 
 .icon-btn.highlight {
@@ -258,24 +183,20 @@ body {
 canvas {
   position: absolute;
   touch-action: none;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
 }
 
-/* ===== PANEL DE AJUSTES ===== */
+/* PANEL AJUSTES */
 .settings-panel {
   position: absolute;
   bottom: 0;
   width: 100%;
-  max-height: 75vh;
+  max-height: 70vh;
   background: #1a1a1a;
   border-top-left-radius: 25px;
   border-top-right-radius: 25px;
   transform: translateY(100%);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s;
   z-index: 30;
-  box-shadow: 0 -5px 30px rgba(0,0,0,0.5);
   overflow-y: auto;
 }
 
@@ -287,13 +208,9 @@ canvas {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 20px 15px;
+  padding: 20px;
   border-bottom: 1px solid #333;
   font-weight: bold;
-  font-size: 1.1rem;
-  position: sticky;
-  top: 0;
-  background: #1a1a1a;
 }
 
 .close-btn {
@@ -302,16 +219,6 @@ canvas {
   color: #888;
   font-size: 28px;
   cursor: pointer;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 20px;
-}
-
-.close-btn:active {
-  background: rgba(255,255,255,0.1);
 }
 
 .panel-content {
@@ -324,16 +231,36 @@ canvas {
   border-bottom: 1px solid #2a2a2a;
 }
 
-.control-section:last-child {
-  border-bottom: none;
-}
-
 .control-section h4 {
   color: #ff69b4;
-  font-size: 0.9rem;
   margin-bottom: 15px;
+  font-size: 0.9rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+}
+
+.circle-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.circle-control button {
+  width: 50px; height: 50px;
+  border-radius: 25px;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.circle-control span {
+  font-size: 28px;
+  font-weight: bold;
+  color: #ff69b4;
+  min-width: 40px;
+  text-align: center;
 }
 
 .control-row {
@@ -344,50 +271,16 @@ canvas {
 }
 
 .control-row label {
-  flex: 0 0 100px;
-  font-size: 0.9rem;
-  color: #ccc;
+  flex: 0 0 80px;
 }
 
 .control-row input[type="range"] {
   flex: 1;
-  height: 4px;
-  -webkit-appearance: none;
-  background: transparent;
-}
-
-.control-row input[type="range"]::-webkit-slider-runnable-track {
-  height: 4px;
-  background: #333;
-  border-radius: 2px;
-}
-
-.control-row input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #ff69b4;
-  margin-top: -9px;
-  box-shadow: 0 2px 8px rgba(255,105,180,0.4);
-  border: 2px solid white;
 }
 
 .control-row span {
   min-width: 45px;
-  text-align: right;
-  font-size: 0.85rem;
   color: #ff69b4;
-  font-weight: 600;
-}
-
-.control-row input[type="color"] {
-  width: 50px;
-  height: 40px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-radius: 8px;
 }
 
 .secondary-btn-full {
@@ -399,190 +292,9 @@ canvas {
   color: white;
   border-radius: 12px;
   font-size: 1rem;
-  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.secondary-btn-full:active {
-  background: #3a3a3a;
 }
 
 #moveGuideBtn.active {
   background: #ff69b4;
-  border-color: #ff69b4;
-  color: white;
-}
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 400px) {
-  .control-row label {
-    flex: 0 0 80px;
-    font-size: 0.8rem;
-  }
-  
-  .logo-container h1 {
-    font-size: 1.8rem;
-  }
-}
-/* ===== CORRECCIONES PARA MODO RECORTE ===== */
-.crop-wrapper {
-  position: absolute;
-  cursor: move;
-  touch-action: none;
-}
-
-.crop-wrapper img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  pointer-events: none;
-  touch-action: none;
-}
-
-.crop-frame {
-  position: absolute;
-  border: 3px solid #ff69b4;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.5), 0 0 20px rgba(255,105,180,0.3);
-  border-radius: 20px;
-  pointer-events: auto;
-  touch-action: none;
-  cursor: move;
-}
-
-.frame-guide-text {
-  position: absolute;
-  top: -28px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #ff69b4;
-  font-size: 12px;
-  font-weight: bold;
-  background: rgba(0,0,0,0.7);
-  padding: 4px 12px;
-  border-radius: 20px;
-  white-space: nowrap;
-  pointer-events: none;
-  border: 1px solid #ff69b4;
-}
-
-.handle {
-  position: absolute;
-  width: 32px;
-  height: 32px;
-  background: #ff69b4;
-  border-radius: 50%;
-  border: 3px solid white;
-  pointer-events: auto;
-  touch-action: none;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-  z-index: 10;
-}
-
-.handle.tl { top: -16px; left: -16px; cursor: nw-resize; }
-.handle.tr { top: -16px; right: -16px; cursor: ne-resize; }
-.handle.bl { bottom: -16px; left: -16px; cursor: sw-resize; }
-.handle.br { bottom: -16px; right: -16px; cursor: se-resize; }
-
-.crop-workspace {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  background: #0a0a0a;
-  touch-action: none;
-}
-
-.crop-instruction {
-  padding: 12px;
-  display: flex;
-  justify-content: space-around;
-  background: rgba(0,0,0,0.9);
-  color: #aaa;
-  font-size: 0.85rem;
-  border-top: 1px solid #333;
-}
-
-.crop-instruction span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-/* Asegurar que el canvas se vea correctamente */
-.work-workspace {
-  flex: 1;
-  position: relative;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  touch-action: none;
-}
-
-#imageCanvas, #guideCanvas {
-  position: absolute;
-  touch-action: none;
-  pointer-events: auto;
-}
-
-#guideCanvas {
-  pointer-events: auto;
-}
-/* ===== ESTILOS PARA GUÍAS COCOLORCA ===== */
-.crop-frame {
-  border: 3px solid #ffffff;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 15px rgba(255,255,255,0.2);
-  border-radius: 20px;
-  touch-action: none;
-}
-
-.frame-guide-text {
-  position: absolute;
-  top: -30px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 500;
-  background: rgba(0,0,0,0.6);
-  padding: 4px 12px;
-  border-radius: 20px;
-  white-space: nowrap;
-  pointer-events: none;
-  border: 1px solid rgba(255,255,255,0.3);
-  letter-spacing: 1px;
-}
-
-.handle {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  background: #fff;
-  border-radius: 50%;
-  border: 2px solid rgba(0,0,0,0.3);
-  pointer-events: auto;
-  touch-action: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-}
-
-.handle.tl { top: -15px; left: -15px; }
-.handle.tr { top: -15px; right: -15px; }
-.handle.bl { bottom: -15px; left: -15px; }
-.handle.br { bottom: -15px; right: -15px; }
-
-/* Ocultar handles innecesarios si se quiere más limpio */
-.crop-instruction {
-  padding: 12px;
-  display: flex;
-  justify-content: space-around;
-  background: #000;
-  color: #888;
-  font-size: 0.8rem;
-  border-top: 1px solid #222;
-}
-
-/* Guías limpias estilo cocolorca */
-#guideCanvas {
-  pointer-events: auto;
-  touch-action: none;
 }
