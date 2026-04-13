@@ -528,3 +528,61 @@ canvas {
 #guideCanvas {
   pointer-events: auto;
 }
+/* ===== ESTILOS PARA GUÍAS COCOLORCA ===== */
+.crop-frame {
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 15px rgba(255,255,255,0.2);
+  border-radius: 20px;
+  touch-action: none;
+}
+
+.frame-guide-text {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(0,0,0,0.6);
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+  pointer-events: none;
+  border: 1px solid rgba(255,255,255,0.3);
+  letter-spacing: 1px;
+}
+
+.handle {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: #fff;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.3);
+  pointer-events: auto;
+  touch-action: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.handle.tl { top: -15px; left: -15px; }
+.handle.tr { top: -15px; right: -15px; }
+.handle.bl { bottom: -15px; left: -15px; }
+.handle.br { bottom: -15px; right: -15px; }
+
+/* Ocultar handles innecesarios si se quiere más limpio */
+.crop-instruction {
+  padding: 12px;
+  display: flex;
+  justify-content: space-around;
+  background: #000;
+  color: #888;
+  font-size: 0.8rem;
+  border-top: 1px solid #222;
+}
+
+/* Guías limpias estilo cocolorca */
+#guideCanvas {
+  pointer-events: auto;
+  touch-action: none;
+}
