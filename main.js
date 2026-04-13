@@ -1,70 +1,78 @@
-console.log('🎨 Painting With Roma - Fullscreen');
+console.log('🎨 Painting With Roma - Crop + Guías');
+
+// ===== ELEMENTOS =====
+const cropMode = document.getElementById('cropMode');
+const workMode = document.getElementById('workMode');
+const cropImage = document.getElementById('cropImage');
+const cropWrapper = document.getElementById('cropWrapper');
+const cropFrame = document.getElementById('cropFrame');
+const imageCanvas = document.getElementById('imageCanvas');
+const guideCanvas = document.getElementById('guideCanvas');
+const workWorkspace = document.getElementById('workWorkspace');
+const settingsPanel = document.getElementById('settingsPanel');
+const fileInput = document.getElementById('fileInput');
 
 // ===== VARIABLES =====
-let currentImage = null;
-let originalCanvas, guideCanvas;
-let workspace, canvasWrapper;
-
-let viewX = 0, viewY = 0;
-let viewScale = 1;
-let rotation = 0;
-
+let originalImage = null;
+let fixedImage = null;
+let cropScale = 1;
+let cropX = 0, cropY = 0;
+let frameX = 0, frameY = 0, frameW = 0, frameH = 0;
 let isDragging = false;
+let isResizing = false;
+let activeHandle = null;
 let lastTouchX, lastTouchY;
-let initialDistance, initialScale, initialRotation, initialAngle;
-
-let settingsPanel, emptyState;
+let initialDistance, initialScale;
+let guideOffsetX = 0, guideOffsetY = 0;
+let guideScale = 1;
+let guideRotation = 0;
+let isMovingGuide = false;
 
 // ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', () => {
-  originalCanvas = document.getElementById('originalCanvas');
-  guideCanvas = document.getElementById('guideCanvas');
-  workspace = document.getElementById('workspace');
-  canvasWrapper = document.getElementById('canvasWrapper');
-  settingsPanel = document.getElementById('settingsPanel');
-  emptyState = document.getElementById('emptyState');
-  
   setupFileInput();
+  setupCropEvents();
+  setupWorkEvents();
   setupControls();
-  setupTouchEvents();
   setupUI();
 });
 
-// ===== UI =====
+// ===== UI GENERAL =====
 function setupUI() {
-  const galleryBtn = document.getElementById('galleryBtn');
-  const menuToggle = document.getElementById('menuToggle');
-  const closePanel = document.getElementById('closePanel');
-  const resetViewBtn = document.getElementById('resetViewBtn');
-  const fileInput = document.getElementById('fileInput');
+  document.getElementById('menuToggle').addEventListener('click', () => {
+    settingsPanel.classList.add('open');
+  });
   
-  // Abrir galería
-  galleryBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  document.getElementById('closePanel').addEventListener('click', () => {
+    settingsPanel.classList.remove('open');
+  });
+  
+  document.getElementById('newImageBtn').addEventListener('click', () => {
     fileInput.click();
   });
   
-  emptyState.addEventListener('click', (e) => {
-    e.preventDefault();
-    fileInput.click();
+  document.getElementById('cancelCrop').addEventListener('click', () => {
+    cropMode.style.display = 'none';
+    workMode.style.display = 'none';
   });
   
-  menuToggle.addEventListener('click', () => settingsPanel.classList.add('open'));
-  closePanel.addEventListener('click', () => settingsPanel.classList.remove('open'));
+  document.getElementById('confirmCrop').addEventListener('click', applyCrop);
   
-  resetViewBtn.addEventListener('click', () => {
-    if (currentImage) {
-      resetView();
-      drawGuide();
-    }
+  document.getElementById('resetGuideBtn').addEventListener('click', () => {
+    guideOffsetX = 0;
+    guideOffsetY = 0;
+    guideScale = 1;
+    guideRotation = 0;
+    drawGuides();
   });
+  
+  document.getElementById('moveGuideBtn').addEventListener('click', toggleGuideMove);
+  
+  document.getElementById('downloadBtn').addEventListener('click', downloadImage);
 }
 
-// ===== SUBIDA DE IMAGEN =====
+// ===== SUBIR IMAGEN =====
 function setupFileInput() {
-  const fileInput = document.getElementById('fileInput');
-  
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -73,11 +81,8 @@ function setupFileInput() {
       reader.onload = (event) => {
         const img = new Image();
         img.onload = () => {
-          currentImage = img;
-          setupCanvases(img);
-          resetView();
-          drawGuide();
-          emptyState.style.display = 'none';
+          originalImage = img;
+          startCropMode(img);
         };
         img.src = event.target.result;
       };
@@ -87,84 +92,176 @@ function setupFileInput() {
   });
 }
 
-function setupCanvases(img) {
-  const containerWidth = workspace.clientWidth;
-  const containerHeight = workspace.clientHeight;
+function startCropMode(img) {
+  cropImage.src = img.src;
+  
+  const containerW = cropMode.clientWidth;
+  const containerH = cropMode.clientHeight - 60;
   
   const imgRatio = img.width / img.height;
-  const containerRatio = containerWidth / containerHeight;
+  let w, h;
   
-  let width, height;
-  
-  if (imgRatio > containerRatio) {
-    width = containerWidth;
-    height = width / imgRatio;
+  if (imgRatio > 1) {
+    w = Math.min(containerW, img.width);
+    h = w / imgRatio;
   } else {
-    height = containerHeight;
-    width = height * imgRatio;
+    h = Math.min(containerH, img.height);
+    w = h * imgRatio;
   }
   
-  originalCanvas.width = width;
-  originalCanvas.height = height;
-  guideCanvas.width = width;
-  guideCanvas.height = height;
+  cropScale = 1;
+  cropImage.style.width = w + 'px';
+  cropImage.style.height = h + 'px';
+  cropWrapper.style.width = w + 'px';
+  cropWrapper.style.height = h + 'px';
+  cropFrame.style.width = w + 'px';
+  cropFrame.style.height = h + 'px';
   
-  originalCanvas.style.width = width + 'px';
-  originalCanvas.style.height = height + 'px';
-  guideCanvas.style.width = width + 'px';
-  guideCanvas.style.height = height + 'px';
+  cropX = (containerW - w) / 2;
+  cropY = (containerH - h) / 2 + 30;
+  updateCropTransform();
   
-  canvasWrapper.style.width = width + 'px';
-  canvasWrapper.style.height = height + 'px';
+  frameW = w;
+  frameH = h;
   
-  const ctx = originalCanvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, width, height);
-  
-  // Centrar
-  viewX = (containerWidth - width) / 2;
-  viewY = (containerHeight - height) / 2;
-  updateTransform();
+  cropMode.style.display = 'flex';
+  workMode.style.display = 'none';
 }
 
-function resetView() {
-  const containerWidth = workspace.clientWidth;
-  const containerHeight = workspace.clientHeight;
-  const width = originalCanvas.width;
-  const height = originalCanvas.height;
-  
-  viewX = (containerWidth - width) / 2;
-  viewY = (containerHeight - height) / 2;
-  viewScale = 1;
-  rotation = 0;
-  updateTransform();
+function updateCropTransform() {
+  cropWrapper.style.transform = `translate(${cropX}px, ${cropY}px) scale(${cropScale})`;
 }
 
-function updateTransform() {
-  canvasWrapper.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale}) rotate(${rotation}deg)`;
-}
-
-// ===== CONTROLES =====
-function setupControls() {
-  const controls = ['circles', 'spacing', 'circleSize', 'radialLines', 'opacity', 'lineColor', 'lineWidth'];
+// ===== EVENTOS DE RECORTE =====
+function setupCropEvents() {
+  const workspace = cropMode.querySelector('.crop-workspace');
   
-  controls.forEach(id => {
-    document.getElementById(id).addEventListener('input', function() {
-      const valueEl = document.getElementById(id + 'Value');
-      if (valueEl) {
-        let suffix = '';
-        if (['spacing', 'circleSize', 'opacity'].includes(id)) suffix = '%';
-        valueEl.textContent = this.value + suffix;
-      }
-      if (currentImage) drawGuide();
-    });
+  workspace.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touches = e.touches;
+    const target = e.target;
+    
+    if (target.classList.contains('handle')) {
+      isResizing = true;
+      activeHandle = target.dataset.handle;
+    } else if (touches.length === 2) {
+      const t1 = touches[0], t2 = touches[1];
+      initialDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      initialScale = cropScale;
+    } else if (touches.length === 1) {
+      isDragging = true;
+      lastTouchX = touches[0].clientX;
+      lastTouchY = touches[0].clientY;
+    }
   });
   
-  document.getElementById('downloadBtn').addEventListener('click', downloadImage);
+  workspace.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    const touches = e.touches;
+    
+    if (isResizing && activeHandle) {
+      // Lógica de resize simplificada
+    } else if (touches.length === 2) {
+      const dist = Math.hypot(touches[1].clientX - touches[0].clientX, touches[1].clientY - touches[0].clientY);
+      cropScale = Math.min(Math.max(initialScale * (dist / initialDistance), 0.5), 3);
+      updateCropTransform();
+    } else if (touches.length === 1 && isDragging) {
+      cropX += touches[0].clientX - lastTouchX;
+      cropY += touches[0].clientY - lastTouchY;
+      lastTouchX = touches[0].clientX;
+      lastTouchY = touches[0].clientY;
+      updateCropTransform();
+    }
+  });
+  
+  workspace.addEventListener('touchend', () => {
+    isDragging = false;
+    isResizing = false;
+    activeHandle = null;
+  });
+}
+
+function applyCrop() {
+  const canvas = document.createElement('canvas');
+  const wrapperRect = cropWrapper.getBoundingClientRect();
+  const frameRect = cropFrame.getBoundingClientRect();
+  const imgRect = cropImage.getBoundingClientRect();
+  
+  const scaleX = originalImage.width / imgRect.width;
+  const scaleY = originalImage.height / imgRect.height;
+  
+  const srcX = (frameRect.left - imgRect.left) * scaleX;
+  const srcY = (frameRect.top - imgRect.top) * scaleY;
+  const srcW = frameRect.width * scaleX;
+  const srcH = frameRect.height * scaleY;
+  
+  canvas.width = srcW;
+  canvas.height = srcH;
+  
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(originalImage, srcX, srcY, srcW, srcH, 0, 0, srcW, srcH);
+  
+  fixedImage = canvas;
+  
+  imageCanvas.width = workWorkspace.clientWidth;
+  imageCanvas.height = workWorkspace.clientHeight;
+  guideCanvas.width = workWorkspace.clientWidth;
+  guideCanvas.height = workWorkspace.clientHeight;
+  
+  const imgCtx = imageCanvas.getContext('2d');
+  imgCtx.drawImage(canvas, 0, 0, imageCanvas.width, imageCanvas.height);
+  
+  cropMode.style.display = 'none';
+  workMode.style.display = 'flex';
+  
+  guideOffsetX = 0;
+  guideOffsetY = 0;
+  guideScale = 1;
+  guideRotation = 0;
+  
+  drawGuides();
+}
+
+// ===== MODO TRABAJO =====
+function setupWorkEvents() {
+  guideCanvas.addEventListener('touchstart', (e) => {
+    if (!isMovingGuide) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+  });
+  
+  guideCanvas.addEventListener('touchmove', (e) => {
+    if (!isMovingGuide) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    guideOffsetX += touch.clientX - lastTouchX;
+    guideOffsetY += touch.clientY - lastTouchY;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    drawGuides();
+  });
+}
+
+function toggleGuideMove() {
+  isMovingGuide = !isMovingGuide;
+  const btn = document.getElementById('moveGuideBtn');
+  
+  if (isMovingGuide) {
+    workWorkspace.classList.add('guide-moving');
+    btn.classList.add('active');
+    btn.textContent = '📍';
+  } else {
+    workWorkspace.classList.remove('guide-moving');
+    btn.classList.remove('active');
+    btn.textContent = '✋';
+  }
 }
 
 // ===== DIBUJAR GUÍAS =====
-function drawGuide() {
-  if (!currentImage) return;
+function drawGuides() {
+  if (!fixedImage) return;
   
   const ctx = guideCanvas.getContext('2d');
   const w = guideCanvas.width;
@@ -184,13 +281,14 @@ function drawGuide() {
   ctx.lineWidth = lineWidth;
   ctx.globalAlpha = opacity;
   
-  const centerX = w/2;
-  const centerY = h/2;
-  const baseRadius = Math.min(w, h) * 0.12 * circleSizeFactor;
+  const centerX = w/2 + guideOffsetX;
+  const centerY = h/2 + guideOffsetY;
+  const baseRadius = Math.min(w, h) * 0.12 * circleSizeFactor * guideScale;
   const spacing = baseRadius * 2.2 * spacingFactor;
   
   ctx.save();
   ctx.translate(centerX, centerY);
+  ctx.rotate(guideRotation * Math.PI / 180);
   
   // Cuadrícula
   ctx.lineWidth = lineWidth * 0.5;
@@ -262,64 +360,30 @@ function drawGuide() {
   ctx.restore();
 }
 
-// ===== GESTOS TÁCTILES =====
-function setupTouchEvents() {
-  workspace.addEventListener('touchstart', (e) => {
-    if (!currentImage) return;
-    e.preventDefault();
-    
-    const touches = e.touches;
-    
-    if (touches.length === 1) {
-      isDragging = true;
-      lastTouchX = touches[0].clientX;
-      lastTouchY = touches[0].clientY;
-    } else if (touches.length === 2) {
-      isDragging = false;
-      const t1 = touches[0], t2 = touches[1];
-      initialDistance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      initialScale = viewScale;
-      initialAngle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX);
-      initialRotation = rotation;
-    }
-  }, { passive: false });
+// ===== CONTROLES DE GUÍA =====
+function setupControls() {
+  const controls = ['circles', 'spacing', 'circleSize', 'radialLines', 'opacity', 'lineColor', 'lineWidth'];
   
-  workspace.addEventListener('touchmove', (e) => {
-    if (!currentImage) return;
-    e.preventDefault();
-    
-    const touches = e.touches;
-    
-    if (touches.length === 1 && isDragging) {
-      viewX += touches[0].clientX - lastTouchX;
-      viewY += touches[0].clientY - lastTouchY;
-      lastTouchX = touches[0].clientX;
-      lastTouchY = touches[0].clientY;
-      updateTransform();
-    } else if (touches.length === 2) {
-      const t1 = touches[0], t2 = touches[1];
-      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      viewScale = Math.min(Math.max(initialScale * (dist / initialDistance), 0.5), 4);
-      
-      const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX);
-      rotation = initialRotation + (angle - initialAngle) * 180 / Math.PI;
-      
-      updateTransform();
-    }
-  }, { passive: false });
-  
-  workspace.addEventListener('touchend', () => {
-    isDragging = false;
+  controls.forEach(id => {
+    document.getElementById(id).addEventListener('input', function() {
+      const valueEl = document.getElementById(id + 'Value');
+      if (valueEl) {
+        let suffix = '';
+        if (['spacing', 'circleSize', 'opacity'].includes(id)) suffix = '%';
+        valueEl.textContent = this.value + suffix;
+      }
+      drawGuides();
+    });
   });
 }
 
 // ===== DESCARGAR =====
 function downloadImage() {
   const combined = document.createElement('canvas');
-  combined.width = originalCanvas.width;
-  combined.height = originalCanvas.height;
+  combined.width = imageCanvas.width;
+  combined.height = imageCanvas.height;
   const ctx = combined.getContext('2d');
-  ctx.drawImage(originalCanvas, 0, 0);
+  ctx.drawImage(imageCanvas, 0, 0);
   ctx.drawImage(guideCanvas, 0, 0);
   
   const link = document.createElement('a');

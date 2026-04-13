@@ -16,30 +16,152 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.fullscreen-app {
+.app-container {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  flex-direction: column;
-  background: #0a0a0a;
   position: relative;
+  background: #000;
 }
 
-/* Barra superior */
-.top-bar {
+/* ===== MODO RECORTE ===== */
+.crop-mode {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  z-index: 10;
+}
+
+.crop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  flex-shrink: 0;
+}
+
+.text-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1rem;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.text-btn.primary {
+  color: #ff69b4;
+  font-weight: 600;
+}
+
+.crop-workspace {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.crop-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  touch-action: none;
+}
+
+#cropImage {
+  display: block;
+  pointer-events: none;
+}
+
+.crop-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.crop-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #ff69b4;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
+
+.crop-handles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: #ff69b4;
+  border: 3px solid white;
+  border-radius: 15px;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.handle.tl { top: -15px; left: -15px; cursor: nw-resize; }
+.handle.tr { top: -15px; right: -15px; cursor: ne-resize; }
+.handle.bl { bottom: -15px; left: -15px; cursor: sw-resize; }
+.handle.br { bottom: -15px; right: -15px; cursor: se-resize; }
+
+.crop-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.85rem;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+/* ===== MODO TRABAJO ===== */
+.work-mode {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+  z-index: 5;
+}
+
+.work-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  z-index: 10;
+  background: rgba(0, 0, 0, 0.8);
   flex-shrink: 0;
 }
 
-.top-bar h1 {
+.work-header h1 {
   font-size: 1.2rem;
   font-weight: 600;
   background: linear-gradient(135deg, #ff69b4, #ff1493);
@@ -55,104 +177,88 @@ body {
   width: 44px;
   height: 44px;
   border-radius: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   cursor: pointer;
 }
 
-/* Área de trabajo FULLSCREEN */
-.workspace-full {
+.work-workspace {
   flex: 1;
   position: relative;
   overflow: hidden;
   touch-action: none;
-  background: #000;
 }
 
-.canvas-full-wrapper {
+#imageCanvas {
   position: absolute;
   top: 0;
   left: 0;
-  transform-origin: 0 0;
-  touch-action: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 1;
 }
 
-#originalCanvas,
 #guideCanvas {
   position: absolute;
   top: 0;
   left: 0;
-  display: block;
-  touch-action: none;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   pointer-events: none;
+  z-index: 2;
 }
 
-#originalCanvas { z-index: 1; }
-#guideCanvas { z-index: 2; }
-
-/* Estado vacío */
-.empty-state {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  text-align: center;
-  color: #666;
-  z-index: 5;
+.work-workspace.guide-moving #guideCanvas {
+  pointer-events: auto;
+  touch-action: none;
 }
 
-.empty-icon {
-  font-size: 80px;
-  margin-bottom: 16px;
-  opacity: 0.5;
-}
-
-.empty-state p {
-  font-size: 1rem;
-  color: #888;
-}
-
-/* Botones flotantes */
-.floating-controls {
-  position: absolute;
-  bottom: 20px;
-  right: 20px;
+.work-footer {
   display: flex;
-  flex-direction: column;
+  padding: 12px 16px;
   gap: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  flex-shrink: 0;
+}
+
+.footer-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: white;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.guide-floating {
+  position: absolute;
+  bottom: 80px;
+  right: 20px;
   z-index: 15;
 }
 
-.fab {
+.fab-guide {
   width: 56px;
   height: 56px;
   border-radius: 30px;
-  background: #ff69b4;
-  border: none;
+  background: rgba(60, 60, 60, 0.9);
+  border: 2px solid #666;
   color: white;
-  font-size: 28px;
-  box-shadow: 0 8px 20px rgba(255, 105, 180, 0.5);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s;
-}
-
-.fab.small {
-  width: 48px;
-  height: 48px;
   font-size: 24px;
-  background: rgba(40, 40, 40, 0.95);
-  backdrop-filter: blur(10px);
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.fab:active {
-  transform: scale(0.95);
+.fab-guide.active {
+  background: #ff69b4;
+  border-color: white;
 }
 
-/* Panel de ajustes */
+/* ===== PANEL DE AJUSTES ===== */
 .settings-panel {
   position: absolute;
   bottom: 0;
@@ -160,16 +266,14 @@ body {
   right: 0;
   background: rgba(20, 20, 20, 0.98);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
   padding: 20px;
-  z-index: 20;
+  z-index: 30;
   transform: translateY(100%);
   transition: transform 0.3s ease;
   max-height: 70vh;
   overflow-y: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .settings-panel.open {
@@ -183,7 +287,6 @@ body {
   margin-bottom: 20px;
   color: white;
   font-weight: 600;
-  font-size: 1.1rem;
 }
 
 .close-btn {
@@ -212,15 +315,12 @@ body {
 
 .control-row label {
   min-width: 90px;
-  font-size: 0.9rem;
-  font-weight: 500;
   color: #ddd;
 }
 
 .control-row input[type="range"] {
   flex: 1;
   height: 5px;
-  border-radius: 10px;
   background: #444;
   -webkit-appearance: none;
 }
@@ -232,7 +332,6 @@ body {
   background: #ff69b4;
   border-radius: 50%;
   border: 2px solid white;
-  cursor: pointer;
 }
 
 .control-row input[type="color"] {
@@ -240,29 +339,20 @@ body {
   height: 40px;
   border: none;
   border-radius: 10px;
-  background: transparent;
-  cursor: pointer;
 }
 
 .control-row span {
   min-width: 45px;
-  font-weight: 600;
   color: #ff69b4;
-  text-align: right;
+  font-weight: 600;
 }
 
 .primary-btn-full {
-  background: linear-gradient(145deg, #ff69b4, #ff1493);
+  background: #ff69b4;
   color: white;
   border: none;
   padding: 16px;
   border-radius: 40px;
   font-weight: 600;
-  font-size: 1rem;
   cursor: pointer;
-  margin-top: 10px;
-}
-
-.primary-btn-full:active {
-  transform: scale(0.98);
 }

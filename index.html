@@ -10,34 +10,55 @@
   <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
-  <div class="fullscreen-app">
-    <!-- Barra superior -->
-    <div class="top-bar">
-      <h1>🎨 Painting With Roma</h1>
-      <button id="menuToggle" class="icon-btn">☰</button>
+  <div class="app-container">
+    <!-- Modo Recorte (se muestra al subir imagen) -->
+    <div class="crop-mode" id="cropMode">
+      <div class="crop-header">
+        <button id="cancelCrop" class="text-btn">Cancelar</button>
+        <span>Encuadra la imagen</span>
+        <button id="confirmCrop" class="text-btn primary">Fijar ✓</button>
+      </div>
+      <div class="crop-workspace">
+        <div class="crop-wrapper" id="cropWrapper">
+          <img id="cropImage" draggable="false">
+          <div class="crop-overlay"></div>
+          <div class="crop-frame" id="cropFrame">
+            <div class="crop-handles">
+              <div class="handle tl" data-handle="tl"></div>
+              <div class="handle tr" data-handle="tr"></div>
+              <div class="handle bl" data-handle="bl"></div>
+              <div class="handle br" data-handle="br"></div>
+            </div>
+          </div>
+        </div>
+        <p class="crop-hint">Pellizca para zoom • Arrastra para mover • Ajusta las esquinas</p>
+      </div>
     </div>
 
-    <!-- Área de trabajo FULLSCREEN -->
-    <div class="workspace-full" id="workspace">
-      <div class="canvas-full-wrapper" id="canvasWrapper">
-        <canvas id="originalCanvas"></canvas>
+    <!-- Modo Trabajo (después de fijar) -->
+    <div class="work-mode" id="workMode" style="display: none;">
+      <div class="work-header">
+        <h1>🎨 Painting With Roma</h1>
+        <button id="menuToggle" class="icon-btn">☰</button>
+      </div>
+      
+      <div class="work-workspace" id="workWorkspace">
+        <canvas id="imageCanvas"></canvas>
         <canvas id="guideCanvas"></canvas>
       </div>
       
-      <!-- Mensaje cuando no hay imagen -->
-      <div class="empty-state" id="emptyState">
-        <div class="empty-icon">💅</div>
-        <p>Toca para seleccionar imagen</p>
+      <div class="work-footer">
+        <button id="newImageBtn" class="footer-btn">📸 Nueva</button>
+        <button id="resetGuideBtn" class="footer-btn">⟲ Guías</button>
       </div>
       
-      <!-- Botones flotantes -->
-      <div class="floating-controls">
-        <button id="galleryBtn" class="fab">📸</button>
-        <button id="resetViewBtn" class="fab small">⟲</button>
+      <!-- Botones flotantes para guías -->
+      <div class="guide-floating">
+        <button id="moveGuideBtn" class="fab-guide active" title="Mover guías">✋</button>
       </div>
     </div>
 
-    <!-- Panel de ajustes -->
+    <!-- Panel de ajustes de guías -->
     <div class="settings-panel" id="settingsPanel">
       <div class="panel-header">
         <span>Ajustes de guía</span>
@@ -83,7 +104,6 @@
     </div>
   </div>
   
-  <!-- Input de archivo FUERA de todo, accesible globalmente -->
   <input type="file" id="fileInput" accept="image/*" style="display: none;">
   
   <script src="main.js"></script>
