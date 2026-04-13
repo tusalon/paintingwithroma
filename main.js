@@ -9,11 +9,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ===== VARIABLES GLOBALES =====
   let originalImage = null;
-  let cropX = 0, cropY = 0;
-  let isDragging = false;
-  let lastTouchX, lastTouchY;
   let guideOffsetX = 0, guideOffsetY = 0;
   let isMovingGuide = false;
+  let lastTouchX, lastTouchY;
+  
+  // Variables para el modo recorte
+  let cropImageScale = 1;
+  let cropImageX = 0, cropImageY = 0;
+  let frameX = 0, frameY = 0;
+  let frameWidth = 0, frameHeight = 0;
+  let isDraggingImage = false;
+  let isDraggingFrame = false;
+  let isResizing = false;
+  let currentHandle = null;
+  let dragStartX, dragStartY;
+  let frameStartX, frameStartY;
   
   // Proporción estándar para uñas Ballerina/Acrílicas
   const NAIL_RATIO = 9/16; // 0.5625
@@ -33,7 +43,10 @@ document.addEventListener('DOMContentLoaded', () => {
           welcomeScreen.style.display = 'none';
           cropMode.style.display = 'flex';
           
-          initializeCropMode();
+          // Esperar a que la imagen se renderice
+          setTimeout(() => {
+            initializeCropMode();
+          }, 50);
         };
         img.src = ev.target.result;
       };
@@ -42,106 +55,216 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function initializeCropMode() {
-    const maxWidth = window.innerWidth * 0.9;
-    const maxHeight = window.innerHeight * 0.6;
+    const wrapper = document.getElementById('cropWrapper');
+    const workspace = document.querySelector('.crop-workspace');
+    const workspaceWidth = workspace.clientWidth;
+    const workspaceHeight = workspace.clientHeight;
     
-    let wrapperWidth, wrapperHeight;
+    // Calcular tamaño para mostrar imagen completa
     const imgRatio = originalImage.width / originalImage.height;
+    let displayWidth, displayHeight;
     
-    if (imgRatio > NAIL_RATIO) {
-      wrapperHeight = Math.min(maxHeight, maxWidth / NAIL_RATIO);
-      wrapperWidth = wrapperHeight * NAIL_RATIO;
+    if (workspaceWidth / workspaceHeight > imgRatio) {
+      displayHeight = workspaceHeight * 0.9;
+      displayWidth = displayHeight * imgRatio;
     } else {
-      wrapperWidth = Math.min(maxWidth, maxHeight * NAIL_RATIO);
-      wrapperHeight = wrapperWidth / NAIL_RATIO;
+      displayWidth = workspaceWidth * 0.9;
+      displayHeight = displayWidth / imgRatio;
     }
     
-    const wrapper = document.getElementById('cropWrapper');
-    wrapper.style.width = wrapperWidth + 'px';
-    wrapper.style.height = wrapperHeight + 'px';
+    cropImageScale = displayWidth / originalImage.width;
     
+    // Posicionar wrapper en el centro
+    wrapper.style.width = displayWidth + 'px';
+    wrapper.style.height = displayHeight + 'px';
+    
+    cropImageX = (workspaceWidth - displayWidth) / 2;
+    cropImageY = (workspaceHeight - displayHeight) / 2;
+    
+    wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
+    
+    // Crear marco de recorte 9:16
     const frame = document.getElementById('cropFrame');
-    const frameWidth = wrapperWidth * 0.8;
-    const frameHeight = frameWidth / NAIL_RATIO;
+    frameWidth = displayWidth * 0.7;
+    frameHeight = frameWidth / NAIL_RATIO;
+    
+    // Asegurar que el marco no sea más grande que la imagen
+    if (frameHeight > displayHeight) {
+      frameHeight = displayHeight * 0.8;
+      frameWidth = frameHeight * NAIL_RATIO;
+    }
+    
+    frameX = (displayWidth - frameWidth) / 2;
+    frameY = (displayHeight - frameHeight) / 2;
     
     frame.style.width = frameWidth + 'px';
     frame.style.height = frameHeight + 'px';
-    frame.style.left = ((wrapperWidth - frameWidth) / 2) + 'px';
-    frame.style.top = ((wrapperHeight - frameHeight) / 2) + 'px';
+    frame.style.left = frameX + 'px';
+    frame.style.top = frameY + 'px';
     
-    cropX = (window.innerWidth - wrapperWidth) / 2;
-    cropY = (window.innerHeight - wrapperHeight) / 2;
-    wrapper.style.transform = `translate(${cropX}px, ${cropY}px)`;
-    
-    // Hacer handles funcionales
-    setupCropHandles(frame, wrapper);
+    // Configurar eventos táctiles
+    setupCropEvents(wrapper, frame, workspace);
   }
 
-  function setupCropHandles(frame, wrapper) {
+  function setupCropEvents(wrapper, frame, workspace) {
     const handles = document.querySelectorAll('.handle');
-    let isResizing = false;
-    let currentHandle = null;
-    let startX, startY, startWidth, startHeight, startLeft, startTop;
     
-    handles.forEach(handle => {
-      handle.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
+    // Limpiar eventos anteriores
+    workspace.removeEventListener('touchstart', handleTouchStart);
+    workspace.removeEventListener('touchmove', handleTouchMove);
+    workspace.removeEventListener('touchend', handleTouchEnd);
+    
+    // Mover imagen
+    const handleTouchStart = (e) => {
+      const touch = e.touches[0];
+      const target = e.target;
+      
+      if (target.classList.contains('handle')) {
+        // Redimensionar marco
         isResizing = true;
-        currentHandle = handle;
-        startX = e.touches[0].clientX;
-        startY = e.touches[0].clientY;
-        startWidth = parseFloat(frame.style.width);
-        startHeight = parseFloat(frame.style.height);
-        startLeft = parseFloat(frame.style.left);
-        startTop = parseFloat(frame.style.top);
-      });
-    });
-    
-    document.addEventListener('touchmove', (e) => {
-      if (!isResizing || !currentHandle) return;
-      e.preventDefault();
-      
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      let newWidth = startWidth;
-      let newHeight = startHeight;
-      let newLeft = startLeft;
-      let newTop = startTop;
-      
-      if (currentHandle.classList.contains('br')) {
-        newWidth = Math.max(100, startWidth + dx);
-        newHeight = newWidth / NAIL_RATIO;
-      } else if (currentHandle.classList.contains('bl')) {
-        newWidth = Math.max(100, startWidth - dx);
-        newHeight = newWidth / NAIL_RATIO;
-        newLeft = startLeft + (startWidth - newWidth);
-      } else if (currentHandle.classList.contains('tr')) {
-        newWidth = Math.max(100, startWidth + dx);
-        newHeight = newWidth / NAIL_RATIO;
-        newTop = startTop + (startHeight - newHeight);
-      } else if (currentHandle.classList.contains('tl')) {
-        newWidth = Math.max(100, startWidth - dx);
-        newHeight = newWidth / NAIL_RATIO;
-        newLeft = startLeft + (startWidth - newWidth);
-        newTop = startTop + (startHeight - newHeight);
+        currentHandle = target;
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        frameStartX = frameX;
+        frameStartY = frameY;
+        const startWidth = frameWidth;
+        const startHeight = frameHeight;
+        
+        const handleMove = (moveEvent) => {
+          if (!isResizing) return;
+          moveEvent.preventDefault();
+          
+          const moveTouch = moveEvent.touches[0];
+          const dx = moveTouch.clientX - dragStartX;
+          const dy = moveTouch.clientY - dragStartY;
+          
+          let newWidth = startWidth;
+          let newHeight = startHeight;
+          let newX = frameStartX;
+          let newY = frameStartY;
+          
+          if (currentHandle.classList.contains('br')) {
+            newWidth = Math.max(80, startWidth + dx);
+            newHeight = newWidth / NAIL_RATIO;
+          } else if (currentHandle.classList.contains('bl')) {
+            newWidth = Math.max(80, startWidth - dx);
+            newHeight = newWidth / NAIL_RATIO;
+            newX = frameStartX + (startWidth - newWidth);
+          } else if (currentHandle.classList.contains('tr')) {
+            newWidth = Math.max(80, startWidth + dx);
+            newHeight = newWidth / NAIL_RATIO;
+            newY = frameStartY + (startHeight - newHeight);
+          } else if (currentHandle.classList.contains('tl')) {
+            newWidth = Math.max(80, startWidth - dx);
+            newHeight = newWidth / NAIL_RATIO;
+            newX = frameStartX + (startWidth - newWidth);
+            newY = frameStartY + (startHeight - newHeight);
+          }
+          
+          // Mantener dentro de la imagen
+          const wrapperWidth = parseFloat(wrapper.style.width);
+          const wrapperHeight = parseFloat(wrapper.style.height);
+          
+          newX = Math.max(0, Math.min(newX, wrapperWidth - newWidth));
+          newY = Math.max(0, Math.min(newY, wrapperHeight - newHeight));
+          
+          frameWidth = newWidth;
+          frameHeight = newHeight;
+          frameX = newX;
+          frameY = newY;
+          
+          frame.style.width = newWidth + 'px';
+          frame.style.height = newHeight + 'px';
+          frame.style.left = newX + 'px';
+          frame.style.top = newY + 'px';
+        };
+        
+        const handleEnd = () => {
+          isResizing = false;
+          currentHandle = null;
+          workspace.removeEventListener('touchmove', handleMove);
+          workspace.removeEventListener('touchend', handleEnd);
+        };
+        
+        workspace.addEventListener('touchmove', handleMove, { passive: false });
+        workspace.addEventListener('touchend', handleEnd);
+        
+      } else if (target === frame || frame.contains(target)) {
+        // Mover marco
+        isDraggingFrame = true;
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        frameStartX = frameX;
+        frameStartY = frameY;
+        
+        const frameMove = (moveEvent) => {
+          if (!isDraggingFrame) return;
+          moveEvent.preventDefault();
+          
+          const moveTouch = moveEvent.touches[0];
+          const dx = moveTouch.clientX - dragStartX;
+          const dy = moveTouch.clientY - dragStartY;
+          
+          let newX = frameStartX + dx;
+          let newY = frameStartY + dy;
+          
+          // Mantener dentro de la imagen
+          const wrapperWidth = parseFloat(wrapper.style.width);
+          const wrapperHeight = parseFloat(wrapper.style.height);
+          
+          newX = Math.max(0, Math.min(newX, wrapperWidth - frameWidth));
+          newY = Math.max(0, Math.min(newY, wrapperHeight - frameHeight));
+          
+          frameX = newX;
+          frameY = newY;
+          
+          frame.style.left = newX + 'px';
+          frame.style.top = newY + 'px';
+        };
+        
+        const frameEnd = () => {
+          isDraggingFrame = false;
+          workspace.removeEventListener('touchmove', frameMove);
+          workspace.removeEventListener('touchend', frameEnd);
+        };
+        
+        workspace.addEventListener('touchmove', frameMove, { passive: false });
+        workspace.addEventListener('touchend', frameEnd);
+        
+      } else {
+        // Mover imagen
+        isDraggingImage = true;
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        const startX = cropImageX;
+        const startY = cropImageY;
+        
+        const imageMove = (moveEvent) => {
+          if (!isDraggingImage) return;
+          moveEvent.preventDefault();
+          
+          const moveTouch = moveEvent.touches[0];
+          const dx = moveTouch.clientX - dragStartX;
+          const dy = moveTouch.clientY - dragStartY;
+          
+          cropImageX = startX + dx;
+          cropImageY = startY + dy;
+          
+          wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
+        };
+        
+        const imageEnd = () => {
+          isDraggingImage = false;
+          workspace.removeEventListener('touchmove', imageMove);
+          workspace.removeEventListener('touchend', imageEnd);
+        };
+        
+        workspace.addEventListener('touchmove', imageMove, { passive: false });
+        workspace.addEventListener('touchend', imageEnd);
       }
-      
-      // Mantener dentro del wrapper
-      const wrapperWidth = parseFloat(wrapper.style.width);
-      const wrapperHeight = parseFloat(wrapper.style.height);
-      newLeft = Math.max(0, Math.min(newLeft, wrapperWidth - newWidth));
-      newTop = Math.max(0, Math.min(newTop, wrapperHeight - newHeight));
-      
-      frame.style.width = newWidth + 'px';
-      frame.style.height = newHeight + 'px';
-      frame.style.left = newLeft + 'px';
-      frame.style.top = newTop + 'px';
-    });
+    };
     
-    document.addEventListener('touchend', () => {
-      isResizing = false;
-      currentHandle = null;
-    });
+    workspace.addEventListener('touchstart', handleTouchStart, { passive: false });
   }
 
   // ===== CANCELAR RECORTE =====
@@ -150,47 +273,34 @@ document.addEventListener('DOMContentLoaded', () => {
     welcomeScreen.style.display = 'flex';
   });
 
-  // ===== MOVER IMAGEN EN MODO RECORTE =====
-  const workspace = document.querySelector('.crop-workspace');
-  workspace.addEventListener('touchstart', (e) => {
-    if (e.target.classList.contains('handle')) return;
-    isDragging = true;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  });
-  
-  workspace.addEventListener('touchmove', (e) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    cropX += e.touches[0].clientX - lastTouchX;
-    cropY += e.touches[0].clientY - lastTouchY;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-    document.getElementById('cropWrapper').style.transform = `translate(${cropX}px, ${cropY}px)`;
-  });
-  
-  workspace.addEventListener('touchend', () => isDragging = false);
-
   // ===== CONFIRMAR RECORTE =====
   document.getElementById('confirmCrop')?.addEventListener('click', () => {
-    const canvas = document.createElement('canvas');
     const frame = document.getElementById('cropFrame');
+    const wrapper = document.getElementById('cropWrapper');
+    
+    // Obtener coordenadas relativas
     const frameRect = frame.getBoundingClientRect();
     const imgRect = cropImage.getBoundingClientRect();
     
-    const scaleX = originalImage.width / imgRect.width;
-    const scaleY = originalImage.height / imgRect.height;
+    // Calcular la escala real de la imagen original vs mostrada
+    const displayWidth = parseFloat(wrapper.style.width);
+    const scaleRatio = originalImage.width / displayWidth;
     
-    const sx = (frameRect.left - imgRect.left) * scaleX;
-    const sy = (frameRect.top - imgRect.top) * scaleY;
-    const sWidth = frameRect.width * scaleX;
-    const sHeight = frameRect.height * scaleY;
+    // Calcular área de recorte en la imagen original
+    const sx = (frameX) * scaleRatio;
+    const sy = (frameY) * scaleRatio;
+    const sWidth = frameWidth * scaleRatio;
+    const sHeight = frameHeight * scaleRatio;
     
+    // Crear canvas con el recorte
+    const canvas = document.createElement('canvas');
     canvas.width = sWidth;
     canvas.height = sHeight;
     
     const ctx = canvas.getContext('2d');
     ctx.drawImage(originalImage, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+    
+    console.log('Recorte creado:', canvas.width, 'x', canvas.height);
     
     setupWorkMode(canvas);
   });
@@ -200,41 +310,68 @@ document.addEventListener('DOMContentLoaded', () => {
     const guideCanvas = document.getElementById('guideCanvas');
     const workWorkspace = document.getElementById('workWorkspace');
     
-    const containerWidth = workWorkspace.clientWidth;
-    const containerHeight = workWorkspace.clientHeight;
-    
-    let canvasWidth, canvasHeight;
-    if (containerWidth / containerHeight > NAIL_RATIO) {
-      canvasHeight = containerHeight;
-      canvasWidth = canvasHeight * NAIL_RATIO;
-    } else {
-      canvasWidth = containerWidth;
-      canvasHeight = canvasWidth / NAIL_RATIO;
-    }
-    
-    imageCanvas.width = guideCanvas.width = canvasWidth;
-    imageCanvas.height = guideCanvas.height = canvasHeight;
-    
-    imageCanvas.style.width = canvasWidth + 'px';
-    imageCanvas.style.height = canvasHeight + 'px';
-    guideCanvas.style.width = canvasWidth + 'px';
-    guideCanvas.style.height = canvasHeight + 'px';
-    
-    imageCanvas.style.left = ((containerWidth - canvasWidth) / 2) + 'px';
-    guideCanvas.style.left = ((containerWidth - canvasWidth) / 2) + 'px';
-    
-    const imgCtx = imageCanvas.getContext('2d');
-    const scale = Math.min(canvasWidth / croppedCanvas.width, canvasHeight / croppedCanvas.height);
-    const x = (canvasWidth - croppedCanvas.width * scale) / 2;
-    const y = (canvasHeight - croppedCanvas.height * scale) / 2;
-    
-    imgCtx.fillStyle = '#000';
-    imgCtx.fillRect(0, 0, canvasWidth, canvasHeight);
-    imgCtx.drawImage(croppedCanvas, 0, 0, croppedCanvas.width, croppedCanvas.height, x, y, croppedCanvas.width * scale, croppedCanvas.height * scale);
-    
-    cropMode.style.display = 'none';
+    // Forzar un reflow para obtener dimensiones correctas
     workMode.style.display = 'flex';
-    drawProfessionalGuides();
+    
+    setTimeout(() => {
+      const containerWidth = workWorkspace.clientWidth;
+      const containerHeight = workWorkspace.clientHeight;
+      
+      console.log('Container:', containerWidth, 'x', containerHeight);
+      
+      let canvasWidth, canvasHeight;
+      if (containerWidth / containerHeight > NAIL_RATIO) {
+        canvasHeight = containerHeight;
+        canvasWidth = canvasHeight * NAIL_RATIO;
+      } else {
+        canvasWidth = containerWidth;
+        canvasHeight = canvasWidth / NAIL_RATIO;
+      }
+      
+      console.log('Canvas:', canvasWidth, 'x', canvasHeight);
+      
+      imageCanvas.width = guideCanvas.width = canvasWidth;
+      imageCanvas.height = guideCanvas.height = canvasHeight;
+      
+      imageCanvas.style.width = canvasWidth + 'px';
+      imageCanvas.style.height = canvasHeight + 'px';
+      guideCanvas.style.width = canvasWidth + 'px';
+      guideCanvas.style.height = canvasHeight + 'px';
+      
+      imageCanvas.style.left = ((containerWidth - canvasWidth) / 2) + 'px';
+      guideCanvas.style.left = ((containerWidth - canvasWidth) / 2) + 'px';
+      imageCanvas.style.top = '0px';
+      guideCanvas.style.top = '0px';
+      
+      const imgCtx = imageCanvas.getContext('2d');
+      
+      // Fondo negro
+      imgCtx.fillStyle = '#000';
+      imgCtx.fillRect(0, 0, canvasWidth, canvasHeight);
+      
+      // Dibujar imagen recortada centrada
+      const scale = Math.min(canvasWidth / croppedCanvas.width, canvasHeight / croppedCanvas.height);
+      const x = (canvasWidth - croppedCanvas.width * scale) / 2;
+      const y = (canvasHeight - croppedCanvas.height * scale) / 2;
+      
+      console.log('Dibujando imagen en:', x, y, scale);
+      
+      imgCtx.drawImage(
+        croppedCanvas, 
+        0, 0, croppedCanvas.width, croppedCanvas.height,
+        x, y, croppedCanvas.width * scale, croppedCanvas.height * scale
+      );
+      
+      cropMode.style.display = 'none';
+      
+      // Resetear offset de guías
+      guideOffsetX = 0;
+      guideOffsetY = 0;
+      
+      drawProfessionalGuides();
+      
+      console.log('Modo trabajo activado');
+    }, 100);
   }
 
   // ===== NAVEGACIÓN =====
@@ -260,30 +397,38 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   const guideCanvas = document.getElementById('guideCanvas');
+  
   guideCanvas.addEventListener('touchstart', (e) => {
     if (!isMovingGuide) return;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
+    const touch = e.touches[0];
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    e.preventDefault();
   });
   
   guideCanvas.addEventListener('touchmove', (e) => {
     if (!isMovingGuide) return;
     e.preventDefault();
+    
+    const touch = e.touches[0];
     if (!lastTouchX) {
-      lastTouchX = e.touches[0].clientX;
-      lastTouchY = e.touches[0].clientY;
+      lastTouchX = touch.clientX;
+      lastTouchY = touch.clientY;
       return;
     }
-    guideOffsetX += e.touches[0].clientX - lastTouchX;
-    guideOffsetY += e.touches[0].clientY - lastTouchY;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
+    
+    guideOffsetX += touch.clientX - lastTouchX;
+    guideOffsetY += touch.clientY - lastTouchY;
+    lastTouchX = touch.clientX;
+    lastTouchY = touch.clientY;
+    
     drawProfessionalGuides();
   });
   
-  guideCanvas.addEventListener('touchend', () => {
+  guideCanvas.addEventListener('touchend', (e) => {
     lastTouchX = null;
     lastTouchY = null;
+    e.preventDefault();
   });
 
   // ===== RESETEAR POSICIÓN =====
@@ -300,13 +445,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const w = canvas.width;
     const h = canvas.height;
     
+    if (w === 0 || h === 0) {
+      console.log('Canvas no tiene dimensiones');
+      return;
+    }
+    
     ctx.clearRect(0, 0, w, h);
     
-    const color = document.getElementById('lineColor').value;
-    const opacity = document.getElementById('opacity').value / 100;
-    const lineWidth = parseInt(document.getElementById('lineWidth').value);
-    const eyeHeightPercent = parseInt(document.getElementById('eyeHeight').value) / 100;
-    const chinHeightPercent = parseInt(document.getElementById('chinHeight').value) / 100;
+    const color = document.getElementById('lineColor')?.value || '#ffffff';
+    const opacity = parseInt(document.getElementById('opacity')?.value || '50') / 100;
+    const lineWidth = parseInt(document.getElementById('lineWidth')?.value || '2');
+    const eyeHeightPercent = parseInt(document.getElementById('eyeHeight')?.value || '30') / 100;
+    const chinHeightPercent = parseInt(document.getElementById('chinHeight')?.value || '75') / 100;
     
     // Márgenes de seguridad (12% cada lado)
     const marginPercent = 0.12;
@@ -359,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.stroke();
     
     // 5. LÍNEAS RADIALES
-    const radialLines = parseInt(document.getElementById('radialLines').value);
+    const radialLines = parseInt(document.getElementById('radialLines')?.value || '0');
     if (radialLines > 0) {
       ctx.beginPath();
       ctx.strokeStyle = color;
@@ -383,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 6. CÍRCULOS CONCÉNTRICOS
-    const circles = parseInt(document.getElementById('circles').value);
+    const circles = parseInt(document.getElementById('circles')?.value || '0');
     if (circles > 0) {
       ctx.beginPath();
       ctx.strokeStyle = color;
@@ -422,15 +572,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ===== CONECTAR CONTROLES =====
   ['circles', 'radialLines', 'opacity', 'lineColor', 'lineWidth', 'eyeHeight', 'chinHeight'].forEach(id => {
-    document.getElementById(id).addEventListener('input', (e) => {
-      const valueEl = document.getElementById(id + 'Value');
-      if (valueEl) valueEl.textContent = e.target.value;
-      drawProfessionalGuides();
-    });
+    const element = document.getElementById(id);
+    if (element) {
+      element.addEventListener('input', (e) => {
+        const valueEl = document.getElementById(id + 'Value');
+        if (valueEl) valueEl.textContent = e.target.value;
+        drawProfessionalGuides();
+      });
+    }
   });
 
   // ===== DESCARGAR =====
-  document.getElementById('downloadBtn').addEventListener('click', () => {
+  document.getElementById('downloadBtn')?.addEventListener('click', () => {
     const canvas = document.createElement('canvas');
     const imgCanvas = document.getElementById('imageCanvas');
     const guideCanvas = document.getElementById('guideCanvas');
@@ -445,7 +598,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.drawImage(guideCanvas, 0, 0);
     
     const link = document.createElement('a');
-    link.download = `uña-guia-${Date.now()}.png`;
+    link.download = `una-guia-${Date.now()}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
   });
