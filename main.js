@@ -1,4 +1,4 @@
-console.log('🎨 Painting With Roma - Guías de Trazado');
+console.log('🎨 Painting With Roma - Guías de Trazado Profesional');
 
 // ===== VARIABLES GLOBALES =====
 let currentImage = null;
@@ -23,9 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTouchEvents();
 });
 
-// ===== SUBIDA DE IMAGEN =====
+// ===== SUBIDA DE IMAGEN (SIEMPRE GALERÍA) =====
 function setupFileInput() {
   const fileInput = document.getElementById('fileInput');
+  fileInput.removeAttribute('capture');
   
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
@@ -50,10 +51,21 @@ function setupFileInput() {
 }
 
 function setupCanvases(img) {
-  const maxWidth = 450;
-  const imgScale = maxWidth / img.width;
-  const width = maxWidth;
-  const height = img.height * imgScale;
+  const container = document.querySelector('.canvas-9x16-wrapper');
+  const containerWidth = container.clientWidth;
+  const containerHeight = container.clientHeight;
+  
+  let width, height;
+  const imgRatio = img.width / img.height;
+  const targetRatio = 9 / 16;
+  
+  if (imgRatio > targetRatio) {
+    height = containerHeight;
+    width = height * imgRatio;
+  } else {
+    width = containerWidth;
+    height = width / imgRatio;
+  }
   
   originalCanvas.width = width;
   originalCanvas.height = height;

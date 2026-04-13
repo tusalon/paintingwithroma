@@ -3,26 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#ff69b4">
+  <meta name="theme-color" content="#f8f9fa">
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css">
-  <title>🎨 Painting With Roma</title>
+  <title>Painting With Roma</title>
+  <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
-  <div class="app">
-    <header>
+  <div class="app-glass">
+    <div class="app-header">
       <h1>🎨 Painting With Roma</h1>
-      <p class="subtitle">Sube una foto y ajusta las guías con tus dedos</p>
-    </header>
+      <p class="app-subtitle">Guía de trazado profesional</p>
+    </div>
 
-    <main>
+    <main class="app-main">
       <div class="upload-section">
-        <input type="file" id="fileInput" accept="image/*" capture="environment">
-        <label for="fileInput" class="upload-btn">📸 Seleccionar imagen</label>
+        <input type="file" id="fileInput" accept="image/*">
+        <label for="fileInput" class="upload-btn-glass">📸 Seleccionar de la galería</label>
       </div>
 
       <div class="canvas-section" id="canvasSection" style="display: none;">
-        <div class="canvas-wrapper">
+        <div class="canvas-9x16-wrapper">
           <canvas id="originalCanvas"></canvas>
           <canvas id="guideCanvas"></canvas>
         </div>
@@ -32,10 +33,10 @@
       <div class="placeholder" id="placeholder">
         <div class="placeholder-icon">💅</div>
         <p>Ninguna imagen seleccionada</p>
-        <p class="placeholder-hint">Sube una foto de uñas para comenzar</p>
+        <p class="placeholder-hint">Selecciona una foto para comenzar</p>
       </div>
 
-      <div class="controls" id="controls" style="display: none;">
+      <div class="controls-glass" id="controls" style="display: none;">
         <div class="control-row">
           <label>🔵 Círculos:</label>
           <input type="range" id="circles" min="1" max="10" value="4">
@@ -71,8 +72,8 @@
           <span id="lineWidthValue">2</span>
         </div>
         <div class="control-row">
-          <button id="resetBtn" class="secondary-btn">🔄 Resetear</button>
-          <button id="downloadBtn" class="primary-btn">⬇️ Descargar</button>
+          <button id="resetBtn" class="secondary-glass">🔄 Resetear</button>
+          <button id="downloadBtn" class="primary-glass">⬇️ Descargar</button>
         </div>
       </div>
     </main>
