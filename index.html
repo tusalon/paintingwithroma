@@ -11,7 +11,7 @@
 </head>
 <body>
   <div class="fullscreen-app">
-    <!-- Barra superior minimalista -->
+    <!-- Barra superior -->
     <div class="top-bar">
       <h1>🎨 Painting With Roma</h1>
       <button id="menuToggle" class="icon-btn">☰</button>
@@ -19,7 +19,7 @@
 
     <!-- Área de trabajo FULLSCREEN -->
     <div class="workspace-full" id="workspace">
-      <div class="canvas-full-wrapper">
+      <div class="canvas-full-wrapper" id="canvasWrapper">
         <canvas id="originalCanvas"></canvas>
         <canvas id="guideCanvas"></canvas>
       </div>
@@ -27,20 +27,17 @@
       <!-- Mensaje cuando no hay imagen -->
       <div class="empty-state" id="emptyState">
         <div class="empty-icon">💅</div>
-        <p>Toca para seleccionar una imagen</p>
+        <p>Toca para seleccionar imagen</p>
       </div>
       
-      <!-- Controles flotantes -->
+      <!-- Botones flotantes -->
       <div class="floating-controls">
         <button id="galleryBtn" class="fab">📸</button>
         <button id="resetViewBtn" class="fab small">⟲</button>
       </div>
-      
-      <!-- Input de archivo oculto -->
-      <input type="file" id="fileInput" accept="image/*" style="display: none;">
     </div>
 
-    <!-- Panel de ajustes (se desliza desde abajo) -->
+    <!-- Panel de ajustes -->
     <div class="settings-panel" id="settingsPanel">
       <div class="panel-header">
         <span>Ajustes de guía</span>
@@ -85,6 +82,10 @@
       </div>
     </div>
   </div>
+  
+  <!-- Input de archivo FUERA de todo, accesible globalmente -->
+  <input type="file" id="fileInput" accept="image/*" style="display: none;">
+  
   <script src="main.js"></script>
 </body>
 </html>

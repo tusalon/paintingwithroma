@@ -1,21 +1,18 @@
-console.log('🎨 Painting With Roma - Fullscreen Pro');
+console.log('🎨 Painting With Roma - Fullscreen');
 
-// ===== VARIABLES GLOBALES =====
+// ===== VARIABLES =====
 let currentImage = null;
 let originalCanvas, guideCanvas;
 let workspace, canvasWrapper;
 
-// Transformaciones (para la vista completa)
 let viewX = 0, viewY = 0;
 let viewScale = 1;
 let rotation = 0;
 
-// Touch tracking
 let isDragging = false;
 let lastTouchX, lastTouchY;
 let initialDistance, initialScale, initialRotation, initialAngle;
 
-// UI elements
 let settingsPanel, emptyState;
 
 // ===== INICIALIZACIÓN =====
@@ -23,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   originalCanvas = document.getElementById('originalCanvas');
   guideCanvas = document.getElementById('guideCanvas');
   workspace = document.getElementById('workspace');
-  canvasWrapper = document.querySelector('.canvas-full-wrapper');
+  canvasWrapper = document.getElementById('canvasWrapper');
   settingsPanel = document.getElementById('settingsPanel');
   emptyState = document.getElementById('emptyState');
   
@@ -33,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupUI();
 });
 
-// ===== UI: Botones y Panel =====
+// ===== UI =====
 function setupUI() {
   const galleryBtn = document.getElementById('galleryBtn');
   const menuToggle = document.getElementById('menuToggle');
@@ -41,21 +38,25 @@ function setupUI() {
   const resetViewBtn = document.getElementById('resetViewBtn');
   const fileInput = document.getElementById('fileInput');
   
-  galleryBtn.addEventListener('click', () => fileInput.click());
-  emptyState.addEventListener('click', () => fileInput.click());
+  // Abrir galería
+  galleryBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fileInput.click();
+  });
+  
+  emptyState.addEventListener('click', (e) => {
+    e.preventDefault();
+    fileInput.click();
+  });
   
   menuToggle.addEventListener('click', () => settingsPanel.classList.add('open'));
   closePanel.addEventListener('click', () => settingsPanel.classList.remove('open'));
   
   resetViewBtn.addEventListener('click', () => {
-    resetView();
-    drawGuide();
-  });
-  
-  // Cerrar panel al tocar fuera
-  document.addEventListener('click', (e) => {
-    if (!settingsPanel.contains(e.target) && !menuToggle.contains(e.target)) {
-      settingsPanel.classList.remove('open');
+    if (currentImage) {
+      resetView();
+      drawGuide();
     }
   });
 }
@@ -63,7 +64,6 @@ function setupUI() {
 // ===== SUBIDA DE IMAGEN =====
 function setupFileInput() {
   const fileInput = document.getElementById('fileInput');
-  fileInput.removeAttribute('capture');
   
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
@@ -88,13 +88,13 @@ function setupFileInput() {
 }
 
 function setupCanvases(img) {
-  const wrapper = canvasWrapper;
   const containerWidth = workspace.clientWidth;
   const containerHeight = workspace.clientHeight;
   
-  let width, height;
   const imgRatio = img.width / img.height;
   const containerRatio = containerWidth / containerHeight;
+  
+  let width, height;
   
   if (imgRatio > containerRatio) {
     width = containerWidth;
@@ -109,19 +109,33 @@ function setupCanvases(img) {
   guideCanvas.width = width;
   guideCanvas.height = height;
   
+  originalCanvas.style.width = width + 'px';
+  originalCanvas.style.height = height + 'px';
+  guideCanvas.style.width = width + 'px';
+  guideCanvas.style.height = height + 'px';
+  
+  canvasWrapper.style.width = width + 'px';
+  canvasWrapper.style.height = height + 'px';
+  
   const ctx = originalCanvas.getContext('2d');
   ctx.drawImage(img, 0, 0, width, height);
   
-  // Centrar la imagen en el wrapper
-  canvasWrapper.style.width = width + 'px';
-  canvasWrapper.style.height = height + 'px';
-  canvasWrapper.style.left = (containerWidth - width) / 2 + 'px';
-  canvasWrapper.style.top = (containerHeight - height) / 2 + 'px';
+  // Centrar
+  viewX = (containerWidth - width) / 2;
+  viewY = (containerHeight - height) / 2;
+  updateTransform();
 }
 
 function resetView() {
-  viewX = 0; viewY = 0;
-  viewScale = 1; rotation = 0;
+  const containerWidth = workspace.clientWidth;
+  const containerHeight = workspace.clientHeight;
+  const width = originalCanvas.width;
+  const height = originalCanvas.height;
+  
+  viewX = (containerWidth - width) / 2;
+  viewY = (containerHeight - height) / 2;
+  viewScale = 1;
+  rotation = 0;
   updateTransform();
 }
 
@@ -129,7 +143,7 @@ function updateTransform() {
   canvasWrapper.style.transform = `translate(${viewX}px, ${viewY}px) scale(${viewScale}) rotate(${rotation}deg)`;
 }
 
-// ===== CONTROLES DE GUÍA =====
+// ===== CONTROLES =====
 function setupControls() {
   const controls = ['circles', 'spacing', 'circleSize', 'radialLines', 'opacity', 'lineColor', 'lineWidth'];
   
@@ -248,10 +262,12 @@ function drawGuide() {
   ctx.restore();
 }
 
-// ===== GESTOS TÁCTILES (Zoom y Pan sobre toda la pantalla) =====
+// ===== GESTOS TÁCTILES =====
 function setupTouchEvents() {
   workspace.addEventListener('touchstart', (e) => {
+    if (!currentImage) return;
     e.preventDefault();
+    
     const touches = e.touches;
     
     if (touches.length === 1) {
@@ -269,8 +285,9 @@ function setupTouchEvents() {
   }, { passive: false });
   
   workspace.addEventListener('touchmove', (e) => {
-    e.preventDefault();
     if (!currentImage) return;
+    e.preventDefault();
+    
     const touches = e.touches;
     
     if (touches.length === 1 && isDragging) {
