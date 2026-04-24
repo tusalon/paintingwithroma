@@ -19,9 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let frameX = 0, frameY = 0;
   let frameWidth = 0, frameHeight = 0;
   let isDraggingImage = false, isDraggingFrame = false;
+  let isDraggingHandle = false;
+  let activeHandle = null;
   let dragStartX, dragStartY, frameStartX, frameStartY, imageStartX, imageStartY;
+  let handleOppositeX, handleOppositeY;
+  let workspaceWidth, workspaceHeight;
   
   const NAIL_RATIO = 9/16;
+  const MIN_FRAME_WIDTH = 80;
 
   // Inicialización
   document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
@@ -47,8 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function initializeCropMode() {
     const wrapper = document.getElementById('cropWrapper');
     const workspace = document.querySelector('.crop-workspace');
-    const workspaceWidth = workspace.clientWidth;
-    const workspaceHeight = workspace.clientHeight;
+    workspaceWidth = workspace.clientWidth;
+    workspaceHeight = workspace.clientHeight;
     
     const imgRatio = originalImage.width / originalImage.height;
     let displayWidth, displayHeight;
@@ -88,9 +93,224 @@ document.addEventListener('DOMContentLoaded', () => {
     setupCropEvents(wrapper, frame);
   }
 
+  function clampImagePosition() {
+    const wrapper = document.getElementById('cropWrapper');
+    const displayWidth = parseFloat(wrapper.style.width);
+    const displayHeight = parseFloat(wrapper.style.height);
+    
+    // El marco debe estar siempre dentro del área visible de la imagen
+    // cropImageX + frameX >= 0  =>  cropImageX >= -frameX
+    // cropImageX + frameX + frameWidth <= workspaceWidth  =>  cropImageX <= workspaceWidth - frameX - frameWidth
+    const minX = workspaceWidth - frameX - frameWidth;
+    const maxX = -frameX;
+    const minY = workspaceHeight - frameY - frameHeight;
+    const maxY = -frameY;
+    
+    if (maxX >= minX) {
+      cropImageX = Math.max(minX, Math.min(maxX, cropImageX));
+    } else {
+      cropImageX = (minX + maxX) / 2;
+    }
+    
+    if (maxY >= minY) {
+      cropImageY = Math.max(minY, Math.min(maxY, cropImageY));
+    } else {
+      cropImageY = (minY + maxY) / 2;
+    }
+    
+    wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
+  }
+
+  function clampFramePosition() {
+    const wrapper = document.getElementById('cropWrapper');
+    const frame = document.getElementById('cropFrame');
+    const displayWidth = parseFloat(wrapper.style.width);
+    const displayHeight = parseFloat(wrapper.style.height);
+    
+    frameX = Math.max(0, Math.min(frameX, displayWidth - frameWidth));
+    frameY = Math.max(0, Math.min(frameY, displayHeight - frameHeight));
+    
+    frame.style.left = frameX + 'px';
+    frame.style.top = frameY + 'px';
+  }
+
+  function updateFrameFromHandle(clientX, clientY) {
+    const wrapper = document.getElementById('cropWrapper');
+    const frame = document.getElementById('cropFrame');
+    const displayWidth = parseFloat(wrapper.style.width);
+    const displayHeight = parseFloat(wrapper.style.height);
+    
+    // Convertir coordenadas del viewport a coordenadas relativas al wrapper
+    const wrapperRect = wrapper.getBoundingClientRect();
+    const localX = clientX - wrapperRect.left;
+    const localY = clientY - wrapperRect.top;
+    
+    let newWidth, newHeight, newX, newY;
+    
+    switch (activeHandle) {
+      case 'tl':
+        // La esquina opuesta es bottom-right
+        newWidth = handleOppositeX - localX;
+        newHeight = handleOppositeY - localY;
+        // Ajustar manteniendo ratio 9:16
+        newHeight = newWidth / NAIL_RATIO;
+        if (newHeight > handleOppositeY) {
+          newHeight = handleOppositeY;
+          newWidth = newHeight * NAIL_RATIO;
+        }
+        newX = handleOppositeX - newWidth;
+        newY = handleOppositeY - newHeight;
+        break;
+      case 'tr':
+        // Esquina opuesta: bottom-left
+        newWidth = localX - handleOppositeX;
+        newHeight = handleOppositeY - localY;
+        newHeight = newWidth / NAIL_RATIO;
+        if (newHeight > handleOppositeY) {
+          newHeight = handleOppositeY;
+          newWidth = newHeight * NAIL_RATIO;
+        }
+        newX = handleOppositeX;
+        newY = handleOppositeY - newHeight;
+        break;
+      case 'bl':
+        // Esquina opuesta: top-right
+        newWidth = handleOppositeX - localX;
+        newHeight = localY - handleOppositeY;
+        newHeight = newWidth / NAIL_RATIO;
+        if (newHeight > displayHeight - handleOppositeY) {
+          newHeight = displayHeight - handleOppositeY;
+          newWidth = newHeight * NAIL_RATIO;
+        }
+        newX = handleOppositeX - newWidth;
+        newY = handleOppositeY;
+        break;
+      case 'br':
+        // Esquina opuesta: top-left
+        newWidth = localX - handleOppositeX;
+        newHeight = localY - handleOppositeY;
+        newHeight = newWidth / NAIL_RATIO;
+        if (newHeight > displayHeight - handleOppositeY) {
+          newHeight = displayHeight - handleOppositeY;
+          newWidth = newHeight * NAIL_RATIO;
+        }
+        newX = handleOppositeX;
+        newY = handleOppositeY;
+        break;
+    }
+    
+    // Validar tamaño mínimo
+    if (newWidth < MIN_FRAME_WIDTH) {
+      newWidth = MIN_FRAME_WIDTH;
+      newHeight = newWidth / NAIL_RATIO;
+      // Recalcular posición según el handle
+      switch (activeHandle) {
+        case 'tl':
+          newX = handleOppositeX - newWidth;
+          newY = handleOppositeY - newHeight;
+          break;
+        case 'tr':
+          newX = handleOppositeX;
+          newY = handleOppositeY - newHeight;
+          break;
+        case 'bl':
+          newX = handleOppositeX - newWidth;
+          newY = handleOppositeY;
+          break;
+        case 'br':
+          newX = handleOppositeX;
+          newY = handleOppositeY;
+          break;
+      }
+    }
+    
+    // Validar que no se salga del wrapper
+    if (newX < 0) {
+      newWidth = newWidth + newX;
+      newX = 0;
+      newHeight = newWidth / NAIL_RATIO;
+    }
+    if (newY < 0) {
+      newHeight = newHeight + newY;
+      newY = 0;
+      newWidth = newHeight * NAIL_RATIO;
+    }
+    if (newX + newWidth > displayWidth) {
+      newWidth = displayWidth - newX;
+      newHeight = newWidth / NAIL_RATIO;
+    }
+    if (newY + newHeight > displayHeight) {
+      newHeight = displayHeight - newY;
+      newWidth = newHeight * NAIL_RATIO;
+    }
+    
+    frameWidth = newWidth;
+    frameHeight = newHeight;
+    frameX = newX;
+    frameY = newY;
+    
+    frame.style.width = frameWidth + 'px';
+    frame.style.height = frameHeight + 'px';
+    frame.style.left = frameX + 'px';
+    frame.style.top = frameY + 'px';
+  }
+
   function setupCropEvents(wrapper, frame) {
-    // Mover marco
+    // --- HANDLES: Redimensionar marco ---
+    const handles = frame.querySelectorAll('.handle');
+    
+    handles.forEach(handle => {
+      handle.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        isDraggingHandle = true;
+        activeHandle = handle.classList[1]; // tl, tr, bl, br
+        const touch = e.touches[0];
+        dragStartX = touch.clientX;
+        dragStartY = touch.clientY;
+        
+        // Guardar coordenadas de la esquina opuesta (relativas al wrapper)
+        const frameLeft = frameX;
+        const frameTop = frameY;
+        switch (activeHandle) {
+          case 'tl':
+            handleOppositeX = frameLeft + frameWidth;
+            handleOppositeY = frameTop + frameHeight;
+            break;
+          case 'tr':
+            handleOppositeX = frameLeft;
+            handleOppositeY = frameTop + frameHeight;
+            break;
+          case 'bl':
+            handleOppositeX = frameLeft + frameWidth;
+            handleOppositeY = frameTop;
+            break;
+          case 'br':
+            handleOppositeX = frameLeft;
+            handleOppositeY = frameTop;
+            break;
+        }
+      });
+    });
+    
+    document.addEventListener('touchmove', (e) => {
+      if (!isDraggingHandle || !activeHandle) return;
+      e.preventDefault();
+      updateFrameFromHandle(e.touches[0].clientX, e.touches[0].clientY);
+      // Después de redimensionar, asegurar que la imagen no deje el marco fuera
+      clampImagePosition();
+    }, { passive: false });
+    
+    document.addEventListener('touchend', () => {
+      if (isDraggingHandle) {
+        isDraggingHandle = false;
+        activeHandle = null;
+      }
+    });
+
+    // --- Mover marco completo ---
     frame.addEventListener('touchstart', (e) => {
+      if (isDraggingHandle) return;
       e.stopPropagation();
       const touch = e.touches[0];
       isDraggingFrame = true;
@@ -101,24 +321,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     frame.addEventListener('touchmove', (e) => {
-      if (!isDraggingFrame) return;
+      if (!isDraggingFrame || isDraggingHandle) return;
       e.preventDefault();
       const touch = e.touches[0];
+      const wrapperDisplayWidth = parseFloat(wrapper.style.width);
+      const wrapperDisplayHeight = parseFloat(wrapper.style.height);
       let newX = frameStartX + touch.clientX - dragStartX;
       let newY = frameStartY + touch.clientY - dragStartY;
-      const w = parseFloat(wrapper.style.width);
-      const h = parseFloat(wrapper.style.height);
-      newX = Math.max(0, Math.min(newX, w - frameWidth));
-      newY = Math.max(0, Math.min(newY, h - frameHeight));
+      newX = Math.max(0, Math.min(newX, wrapperDisplayWidth - frameWidth));
+      newY = Math.max(0, Math.min(newY, wrapperDisplayHeight - frameHeight));
       frameX = newX; frameY = newY;
       frame.style.left = newX + 'px';
       frame.style.top = newY + 'px';
     });
     
-    frame.addEventListener('touchend', () => isDraggingFrame = false);
+    frame.addEventListener('touchend', () => {
+      isDraggingFrame = false;
+    });
 
-    // Mover imagen
+    // --- Mover imagen (fuera del marco) ---
     wrapper.addEventListener('touchstart', (e) => {
+      if (isDraggingHandle) return;
       if (e.target === frame || frame.contains(e.target)) return;
       const touch = e.touches[0];
       isDraggingImage = true;
@@ -129,15 +352,44 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     
     wrapper.addEventListener('touchmove', (e) => {
-      if (!isDraggingImage) return;
+      if (!isDraggingImage || isDraggingHandle) return;
       e.preventDefault();
       const touch = e.touches[0];
       cropImageX = imageStartX + touch.clientX - dragStartX;
       cropImageY = imageStartY + touch.clientY - dragStartY;
-      wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
+      clampImagePosition();
     });
     
-    wrapper.addEventListener('touchend', () => isDraggingImage = false);
+    wrapper.addEventListener('touchend', () => {
+      isDraggingImage = false;
+    });
+    
+    // También permitir mover la imagen desde el workspace (zonas negras)
+    const workspace = document.querySelector('.crop-workspace');
+    workspace.addEventListener('touchstart', (e) => {
+      if (isDraggingHandle) return;
+      if (e.target === wrapper || wrapper.contains(e.target)) return;
+      if (e.target === frame || frame.contains(e.target)) return;
+      const touch = e.touches[0];
+      isDraggingImage = true;
+      dragStartX = touch.clientX;
+      dragStartY = touch.clientY;
+      imageStartX = cropImageX;
+      imageStartY = cropImageY;
+    });
+    
+    workspace.addEventListener('touchmove', (e) => {
+      if (!isDraggingImage || isDraggingHandle) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      cropImageX = imageStartX + touch.clientX - dragStartX;
+      cropImageY = imageStartY + touch.clientY - dragStartY;
+      clampImagePosition();
+    });
+    
+    workspace.addEventListener('touchend', () => {
+      isDraggingImage = false;
+    });
   }
 
   // Cancelar / Confirmar recorte
@@ -175,11 +427,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const containerW = workWorkspace.clientWidth;
       const containerH = workWorkspace.clientHeight;
       
+      // Usar "cover" para que la imagen ocupe toda la pantalla
+      // manteniendo el ratio 9:16, recortando lo que sobre
       let canvasW, canvasH;
       if (containerW / containerH > NAIL_RATIO) {
+        // El contenedor es más ancho que 9:16 → limitado por altura
         canvasH = containerH;
         canvasW = canvasH * NAIL_RATIO;
       } else {
+        // El contenedor es más alto que 9:16 → limitado por anchura
         canvasW = containerW;
         canvasH = canvasW / NAIL_RATIO;
       }
@@ -199,12 +455,28 @@ document.addEventListener('DOMContentLoaded', () => {
       imgCtx.fillStyle = '#000';
       imgCtx.fillRect(0, 0, canvasW, canvasH);
       
-      const scale = Math.min(canvasW / croppedCanvas.width, canvasH / croppedCanvas.height);
-      const x = (canvasW - croppedCanvas.width * scale) / 2;
-      const y = (canvasH - croppedCanvas.height * scale) / 2;
+      // Dibujar la imagen en modo "cover" (llena todo el canvas)
+      const imgRatio = croppedCanvas.width / croppedCanvas.height;
+      const canvasRatio = canvasW / canvasH;
+      
+      let drawWidth, drawHeight, drawX, drawY;
+      
+      if (imgRatio > canvasRatio) {
+        // Imagen más ancha que el canvas → ajustar por altura
+        drawHeight = canvasH;
+        drawWidth = drawHeight * imgRatio;
+        drawX = (canvasW - drawWidth) / 2;
+        drawY = 0;
+      } else {
+        // Imagen más alta que el canvas → ajustar por anchura
+        drawWidth = canvasW;
+        drawHeight = drawWidth / imgRatio;
+        drawX = 0;
+        drawY = (canvasH - drawHeight) / 2;
+      }
       
       imgCtx.drawImage(croppedCanvas, 0, 0, croppedCanvas.width, croppedCanvas.height,
-        x, y, croppedCanvas.width * scale, croppedCanvas.height * scale);
+        drawX, drawY, drawWidth, drawHeight);
       
       cropMode.style.display = 'none';
       drawGuides();
