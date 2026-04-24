@@ -26,7 +26,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let workspaceWidth, workspaceHeight;
   
   const NAIL_RATIO = 9/16;
-  const PHI = 1.618;
   const MIN_FRAME_WIDTH = 80;
 
   // Inicialización
@@ -516,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawGuides();
   });
 
-  // Dibujar guías (SISTEMA PRO FUSIONADO)
+  // Dibujar guías (SISTEMA FINAL)
   function drawGuides() {
     const canvas = document.getElementById('guideCanvas');
     const ctx = canvas.getContext('2d');
@@ -535,47 +534,53 @@ document.addEventListener('DOMContentLoaded', () => {
     const centerX = w/2 + offsetX;
     const centerY = h/2 + offsetY;
     
+    // Calcular radio basado en altura y cantidad de círculos
+    const radius = (h * 0.7) / (circleCount * 1.8);
+    const spacing = radius * 2.1;
+    const startY = centerY - (spacing * (circleCount - 1)) / 2;
+    
+    // Límites laterales
+    const sideOffset = radius * 1.4;
+    const leftX = centerX - sideOffset;
+    const rightX = centerX + sideOffset;
+    
+    // =============================
+    // LÍNEAS VERTICALES
+    // =============================
+    
+    ctx.setLineDash([6, 6]);
     ctx.lineWidth = lineWidthVal;
     ctx.strokeStyle = color;
     ctx.globalAlpha = opacity;
     
-    // --- Eje central vertical ---
-    ctx.setLineDash([6, 6]);
+    // Centro vertical
     ctx.beginPath();
     ctx.moveTo(centerX, 0);
     ctx.lineTo(centerX, h);
     ctx.stroke();
     
-    // --- Líneas áureas (Golden Ratio desde el centro) ---
-    const gOffset = w / PHI / 2;
-    
+    // Límites laterales
     ctx.beginPath();
-    ctx.moveTo(centerX - gOffset, 0);
-    ctx.lineTo(centerX - gOffset, h);
+    ctx.moveTo(leftX, 0);
+    ctx.lineTo(leftX, h);
     ctx.stroke();
     
     ctx.beginPath();
-    ctx.moveTo(centerX + gOffset, 0);
-    ctx.lineTo(centerX + gOffset, h);
+    ctx.moveTo(rightX, 0);
+    ctx.lineTo(rightX, h);
     ctx.stroke();
     
-    // --- Grid horizontal equitativo ---
-    const sectionH = h / (circleCount + 1);
+    // =============================
+    // CÍRCULOS
+    // =============================
     
-    for (let i = 1; i <= circleCount; i++) {
-      const y = i * sectionH;
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
+    ctx.setLineDash([6, 6]);
     
-    // --- Círculos principales ---
-    const radius = sectionH * 0.35;
     let centers = [];
     
-    for (let i = 1; i <= circleCount; i++) {
-      const y = i * sectionH + offsetY;
+    for (let i = 0; i < circleCount; i++) {
+      const y = startY + i * spacing + offsetY;
+      
       centers.push({ x: centerX, y });
       
       ctx.beginPath();
@@ -583,41 +588,81 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
     }
     
-    // --- Radial lines PRO desde cada centro ---
+    // =============================
+    // DIÁMETROS Y DIAGONALES
+    // =============================
+    
     ctx.setLineDash([]);
     ctx.lineWidth = lineWidthVal * 0.8;
-    ctx.globalAlpha = opacity * 0.8;
+    ctx.globalAlpha = opacity * 0.9;
     
-    const angles = [0, Math.PI / 6, Math.PI / 4, Math.PI / 3, Math.PI / 2];
-    const maxLine = Math.max(w, h) * 2;
-    
-    centers.forEach(c => {
-      angles.forEach(a => {
-        const dx = Math.cos(a) * maxLine;
-        const dy = Math.sin(a) * maxLine;
-        
-        ctx.beginPath();
-        ctx.moveTo(c.x - dx, c.y - dy);
-        ctx.lineTo(c.x + dx, c.y + dy);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(c.x - dx, c.y + dy);
-        ctx.lineTo(c.x + dx, c.y - dy);
-        ctx.stroke();
-      });
-    });
-    
-    // --- Círculos áureos (PHI * radius) ---
-    ctx.globalAlpha = opacity * 0.5;
-    ctx.lineWidth = lineWidthVal * 0.7;
-    ctx.setLineDash([4, 4]);
-    
-    centers.forEach(c => {
+    for (let i = 0; i < centers.length; i++) {
+      
+      const c = centers[i];
+      
+      // Diámetro horizontal
       ctx.beginPath();
-      ctx.arc(c.x, c.y, radius * PHI, 0, Math.PI * 2);
+      ctx.moveTo(centerX - radius, c.y);
+      ctx.lineTo(centerX + radius, c.y);
       ctx.stroke();
-    });
+      
+      // Diagonales hacia bordes laterales
+      ctx.beginPath();
+      ctx.moveTo(centerX, c.y);
+      ctx.lineTo(leftX, c.y - radius);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX, c.y);
+      ctx.lineTo(rightX, c.y - radius);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX, c.y);
+      ctx.lineTo(leftX, c.y + radius);
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX, c.y);
+      ctx.lineTo(rightX, c.y + radius);
+      ctx.stroke();
+      
+      // =============================
+      // CONEXIÓN ENTRE CÍRCULOS (REBOTES)
+      // =============================
+      
+      if (i > 0) {
+        const prev = centers[i - 1];
+        
+        // Rebote superior izquierdo
+        ctx.beginPath();
+        ctx.moveTo(leftX, c.y - radius);
+        ctx.lineTo(centerX, prev.y);
+        ctx.stroke();
+        
+        // Rebote superior derecho
+        ctx.beginPath();
+        ctx.moveTo(rightX, c.y - radius);
+        ctx.lineTo(centerX, prev.y);
+        ctx.stroke();
+      }
+      
+      if (i < centers.length - 1) {
+        const next = centers[i + 1];
+        
+        // Rebote inferior izquierdo
+        ctx.beginPath();
+        ctx.moveTo(leftX, c.y + radius);
+        ctx.lineTo(centerX, next.y);
+        ctx.stroke();
+        
+        // Rebote inferior derecho
+        ctx.beginPath();
+        ctx.moveTo(rightX, c.y + radius);
+        ctx.lineTo(centerX, next.y);
+        ctx.stroke();
+      }
+    }
     
     ctx.globalAlpha = 1;
   }
