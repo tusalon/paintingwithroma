@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let workspaceWidth, workspaceHeight;
   
   const NAIL_RATIO = 9/16;
+  const PHI = 1.618;
   const MIN_FRAME_WIDTH = 80;
 
   // Inicialización
@@ -98,9 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const displayWidth = parseFloat(wrapper.style.width);
     const displayHeight = parseFloat(wrapper.style.height);
     
-    // El marco debe estar siempre dentro del área visible de la imagen
-    // cropImageX + frameX >= 0  =>  cropImageX >= -frameX
-    // cropImageX + frameX + frameWidth <= workspaceWidth  =>  cropImageX <= workspaceWidth - frameX - frameWidth
     const minX = workspaceWidth - frameX - frameWidth;
     const maxX = -frameX;
     const minY = workspaceHeight - frameY - frameHeight;
@@ -121,26 +119,12 @@ document.addEventListener('DOMContentLoaded', () => {
     wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
   }
 
-  function clampFramePosition() {
-    const wrapper = document.getElementById('cropWrapper');
-    const frame = document.getElementById('cropFrame');
-    const displayWidth = parseFloat(wrapper.style.width);
-    const displayHeight = parseFloat(wrapper.style.height);
-    
-    frameX = Math.max(0, Math.min(frameX, displayWidth - frameWidth));
-    frameY = Math.max(0, Math.min(frameY, displayHeight - frameHeight));
-    
-    frame.style.left = frameX + 'px';
-    frame.style.top = frameY + 'px';
-  }
-
   function updateFrameFromHandle(clientX, clientY) {
     const wrapper = document.getElementById('cropWrapper');
     const frame = document.getElementById('cropFrame');
     const displayWidth = parseFloat(wrapper.style.width);
     const displayHeight = parseFloat(wrapper.style.height);
     
-    // Convertir coordenadas del viewport a coordenadas relativas al wrapper
     const wrapperRect = wrapper.getBoundingClientRect();
     const localX = clientX - wrapperRect.left;
     const localY = clientY - wrapperRect.top;
@@ -149,10 +133,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     switch (activeHandle) {
       case 'tl':
-        // La esquina opuesta es bottom-right
         newWidth = handleOppositeX - localX;
         newHeight = handleOppositeY - localY;
-        // Ajustar manteniendo ratio 9:16
         newHeight = newWidth / NAIL_RATIO;
         if (newHeight > handleOppositeY) {
           newHeight = handleOppositeY;
@@ -162,7 +144,6 @@ document.addEventListener('DOMContentLoaded', () => {
         newY = handleOppositeY - newHeight;
         break;
       case 'tr':
-        // Esquina opuesta: bottom-left
         newWidth = localX - handleOppositeX;
         newHeight = handleOppositeY - localY;
         newHeight = newWidth / NAIL_RATIO;
@@ -174,7 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
         newY = handleOppositeY - newHeight;
         break;
       case 'bl':
-        // Esquina opuesta: top-right
         newWidth = handleOppositeX - localX;
         newHeight = localY - handleOppositeY;
         newHeight = newWidth / NAIL_RATIO;
@@ -186,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
         newY = handleOppositeY;
         break;
       case 'br':
-        // Esquina opuesta: top-left
         newWidth = localX - handleOppositeX;
         newHeight = localY - handleOppositeY;
         newHeight = newWidth / NAIL_RATIO;
@@ -199,11 +178,9 @@ document.addEventListener('DOMContentLoaded', () => {
         break;
     }
     
-    // Validar tamaño mínimo
     if (newWidth < MIN_FRAME_WIDTH) {
       newWidth = MIN_FRAME_WIDTH;
       newHeight = newWidth / NAIL_RATIO;
-      // Recalcular posición según el handle
       switch (activeHandle) {
         case 'tl':
           newX = handleOppositeX - newWidth;
@@ -224,7 +201,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     
-    // Validar que no se salga del wrapper
     if (newX < 0) {
       newWidth = newWidth + newX;
       newX = 0;
@@ -264,12 +240,11 @@ document.addEventListener('DOMContentLoaded', () => {
         e.stopPropagation();
         e.preventDefault();
         isDraggingHandle = true;
-        activeHandle = handle.classList[1]; // tl, tr, bl, br
+        activeHandle = handle.classList[1];
         const touch = e.touches[0];
         dragStartX = touch.clientX;
         dragStartY = touch.clientY;
         
-        // Guardar coordenadas de la esquina opuesta (relativas al wrapper)
         const frameLeft = frameX;
         const frameTop = frameY;
         switch (activeHandle) {
@@ -297,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!isDraggingHandle || !activeHandle) return;
       e.preventDefault();
       updateFrameFromHandle(e.touches[0].clientX, e.touches[0].clientY);
-      // Después de redimensionar, asegurar que la imagen no deje el marco fuera
       clampImagePosition();
     }, { passive: false });
     
@@ -427,15 +401,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const containerW = workWorkspace.clientWidth;
       const containerH = workWorkspace.clientHeight;
       
-      // Usar "cover" para que la imagen ocupe toda la pantalla
-      // manteniendo el ratio 9:16, recortando lo que sobre
       let canvasW, canvasH;
       if (containerW / containerH > NAIL_RATIO) {
-        // El contenedor es más ancho que 9:16 → limitado por altura
         canvasH = containerH;
         canvasW = canvasH * NAIL_RATIO;
       } else {
-        // El contenedor es más alto que 9:16 → limitado por anchura
         canvasW = containerW;
         canvasH = canvasW / NAIL_RATIO;
       }
@@ -455,20 +425,17 @@ document.addEventListener('DOMContentLoaded', () => {
       imgCtx.fillStyle = '#000';
       imgCtx.fillRect(0, 0, canvasW, canvasH);
       
-      // Dibujar la imagen en modo "cover" (llena todo el canvas)
       const imgRatio = croppedCanvas.width / croppedCanvas.height;
       const canvasRatio = canvasW / canvasH;
       
       let drawWidth, drawHeight, drawX, drawY;
       
       if (imgRatio > canvasRatio) {
-        // Imagen más ancha que el canvas → ajustar por altura
         drawHeight = canvasH;
         drawWidth = drawHeight * imgRatio;
         drawX = (canvasW - drawWidth) / 2;
         drawY = 0;
       } else {
-        // Imagen más alta que el canvas → ajustar por anchura
         drawWidth = canvasW;
         drawHeight = drawWidth / imgRatio;
         drawX = 0;
@@ -496,21 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.classList.remove('open');
   });
 
-  // Controles de círculos
-  document.getElementById('decreaseCircles').addEventListener('click', () => {
-    if (circleCount > 2) {
-      circleCount--;
-      document.getElementById('circleCount').textContent = circleCount;
-      drawGuides();
-    }
-  });
-  
-  document.getElementById('increaseCircles').addEventListener('click', () => {
-    if (circleCount < 4) {
-      circleCount++;
-      document.getElementById('circleCount').textContent = circleCount;
-      drawGuides();
-    }
+  // Control de círculos con slider
+  document.getElementById('circleSlider').addEventListener('input', (e) => {
+    circleCount = parseInt(e.target.value);
+    document.getElementById('circleCount').textContent = circleCount;
+    drawGuides();
   });
 
   // Mover guías
@@ -545,15 +502,21 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Controles de estilo
-  ['lineWidth', 'opacity', 'lineColor'].forEach(id => {
-    document.getElementById(id).addEventListener('input', (e) => {
-      const val = document.getElementById(id + 'Value');
-      if (val) val.textContent = e.target.value;
-      drawGuides();
-    });
+  document.getElementById('lineWidth').addEventListener('input', (e) => {
+    document.getElementById('lineWidthValue').textContent = e.target.value;
+    drawGuides();
+  });
+  
+  document.getElementById('opacity').addEventListener('input', (e) => {
+    document.getElementById('opacityValue').textContent = e.target.value + '%';
+    drawGuides();
+  });
+  
+  document.getElementById('lineColor').addEventListener('input', () => {
+    drawGuides();
   });
 
-  // Dibujar guías
+  // Dibujar guías (SISTEMA PRO FUSIONADO)
   function drawGuides() {
     const canvas = document.getElementById('guideCanvas');
     const ctx = canvas.getContext('2d');
@@ -564,124 +527,97 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const color = document.getElementById('lineColor').value;
     const opacity = document.getElementById('opacity').value / 100;
-    const lineWidth = parseInt(document.getElementById('lineWidth').value);
+    const lineWidthVal = parseInt(document.getElementById('lineWidth').value);
     
     const offsetX = guideOffsetX;
     const offsetY = guideOffsetY;
     
-    // Calcular tamaño de círculos
-    const circleRadius = (h * 0.7) / (circleCount * 1.8);
-    const spacing = circleRadius * 2.1;
-    const startY = h/2 - (spacing * (circleCount - 1)) / 2;
     const centerX = w/2 + offsetX;
+    const centerY = h/2 + offsetY;
     
-    // Bordes de seguridad
-    const safeMargin = circleRadius * 1.4;
-    const leftSafe = centerX - safeMargin;
-    const rightSafe = centerX + safeMargin;
-    
-    ctx.setLineDash([6, 6]);
-    ctx.lineWidth = lineWidth;
+    ctx.lineWidth = lineWidthVal;
     ctx.strokeStyle = color;
     ctx.globalAlpha = opacity;
     
-    // Línea central vertical
+    // --- Eje central vertical ---
+    ctx.setLineDash([6, 6]);
     ctx.beginPath();
     ctx.moveTo(centerX, 0);
     ctx.lineTo(centerX, h);
     ctx.stroke();
     
-    // Bordes de seguridad
+    // --- Líneas áureas (Golden Ratio desde el centro) ---
+    const gOffset = w / PHI / 2;
+    
     ctx.beginPath();
-    ctx.moveTo(leftSafe, 0);
-    ctx.lineTo(leftSafe, h);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(rightSafe, 0);
-    ctx.lineTo(rightSafe, h);
+    ctx.moveTo(centerX - gOffset, 0);
+    ctx.lineTo(centerX - gOffset, h);
     ctx.stroke();
     
-    // Círculos
-    ctx.setLineDash([6, 6]);
-    for (let i = 0; i < circleCount; i++) {
-      const circleY = startY + offsetY + i * spacing;
+    ctx.beginPath();
+    ctx.moveTo(centerX + gOffset, 0);
+    ctx.lineTo(centerX + gOffset, h);
+    ctx.stroke();
+    
+    // --- Grid horizontal equitativo ---
+    const sectionH = h / (circleCount + 1);
+    
+    for (let i = 1; i <= circleCount; i++) {
+      const y = i * sectionH;
       ctx.beginPath();
-      ctx.ellipse(centerX, circleY, circleRadius, circleRadius, 0, 0, Math.PI * 2);
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
       ctx.stroke();
     }
     
-    // Diámetros dentro de cada círculo
+    // --- Círculos principales ---
+    const radius = sectionH * 0.35;
+    let centers = [];
+    
+    for (let i = 1; i <= circleCount; i++) {
+      const y = i * sectionH + offsetY;
+      centers.push({ x: centerX, y });
+      
+      ctx.beginPath();
+      ctx.arc(centerX, y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    
+    // --- Radial lines PRO desde cada centro ---
     ctx.setLineDash([]);
-    ctx.lineWidth = lineWidth * 0.8;
+    ctx.lineWidth = lineWidthVal * 0.8;
     ctx.globalAlpha = opacity * 0.8;
     
-    for (let i = 0; i < circleCount; i++) {
-      const circleY = startY + offsetY + i * spacing;
-      
-      // Horizontal
-      ctx.beginPath();
-      ctx.moveTo(centerX - circleRadius, circleY);
-      ctx.lineTo(centerX + circleRadius, circleY);
-      ctx.stroke();
-      
-      // Diagonales que rebotan
-      // Diagonal 1 (izquierda)
-      ctx.beginPath();
-      ctx.moveTo(centerX, circleY);
-      ctx.lineTo(leftSafe, circleY - circleRadius);
-      ctx.stroke();
-      
-      // Rebote de Diagonal 1
-      if (i > 0) {
-        const prevY = startY + offsetY + (i-1) * spacing;
+    const angles = [0, Math.PI / 6, Math.PI / 4, Math.PI / 3, Math.PI / 2];
+    const maxLine = Math.max(w, h) * 2;
+    
+    centers.forEach(c => {
+      angles.forEach(a => {
+        const dx = Math.cos(a) * maxLine;
+        const dy = Math.sin(a) * maxLine;
+        
         ctx.beginPath();
-        ctx.moveTo(leftSafe, circleY - circleRadius);
-        ctx.lineTo(centerX, prevY);
+        ctx.moveTo(c.x - dx, c.y - dy);
+        ctx.lineTo(c.x + dx, c.y + dy);
         ctx.stroke();
-      }
-      
-      // Diagonal 2 (derecha)
-      ctx.beginPath();
-      ctx.moveTo(centerX, circleY);
-      ctx.lineTo(rightSafe, circleY - circleRadius);
-      ctx.stroke();
-      
-      // Rebote de Diagonal 2
-      if (i > 0) {
-        const prevY = startY + offsetY + (i-1) * spacing;
+        
         ctx.beginPath();
-        ctx.moveTo(rightSafe, circleY - circleRadius);
-        ctx.lineTo(centerX, prevY);
+        ctx.moveTo(c.x - dx, c.y + dy);
+        ctx.lineTo(c.x + dx, c.y - dy);
         ctx.stroke();
-      }
-      
-      // Diagonales inferiores
+      });
+    });
+    
+    // --- Círculos áureos (PHI * radius) ---
+    ctx.globalAlpha = opacity * 0.5;
+    ctx.lineWidth = lineWidthVal * 0.7;
+    ctx.setLineDash([4, 4]);
+    
+    centers.forEach(c => {
       ctx.beginPath();
-      ctx.moveTo(centerX, circleY);
-      ctx.lineTo(leftSafe, circleY + circleRadius);
+      ctx.arc(c.x, c.y, radius * PHI, 0, Math.PI * 2);
       ctx.stroke();
-      
-      if (i < circleCount - 1) {
-        const nextY = startY + offsetY + (i+1) * spacing;
-        ctx.beginPath();
-        ctx.moveTo(leftSafe, circleY + circleRadius);
-        ctx.lineTo(centerX, nextY);
-        ctx.stroke();
-      }
-      
-      ctx.beginPath();
-      ctx.moveTo(centerX, circleY);
-      ctx.lineTo(rightSafe, circleY + circleRadius);
-      ctx.stroke();
-      
-      if (i < circleCount - 1) {
-        const nextY = startY + offsetY + (i+1) * spacing;
-        ctx.beginPath();
-        ctx.moveTo(rightSafe, circleY + circleRadius);
-        ctx.lineTo(centerX, nextY);
-        ctx.stroke();
-      }
-    }
+    });
     
     ctx.globalAlpha = 1;
   }
