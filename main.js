@@ -244,7 +244,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setupCropEvents(wrapper, frame) {
-    // --- HANDLES: Redimensionar marco ---
     const handles = frame.querySelectorAll('.handle');
     
     handles.forEach(handle => {
@@ -294,7 +293,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // --- Mover marco completo ---
     frame.addEventListener('touchstart', (e) => {
       if (isDraggingHandle) return;
       e.stopPropagation();
@@ -325,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
       isDraggingFrame = false;
     });
 
-    // --- Mover imagen (fuera del marco) ---
     wrapper.addEventListener('touchstart', (e) => {
       if (isDraggingHandle) return;
       if (e.target === frame || frame.contains(e.target)) return;
@@ -350,7 +347,6 @@ document.addEventListener('DOMContentLoaded', () => {
       isDraggingImage = false;
     });
     
-    // También permitir mover la imagen desde el workspace (zonas negras)
     const workspace = document.querySelector('.crop-workspace');
     workspace.addEventListener('touchstart', (e) => {
       if (isDraggingHandle) return;
@@ -378,7 +374,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Cancelar / Confirmar recorte
   document.getElementById('cancelCrop').addEventListener('click', () => {
     cropMode.style.display = 'none';
     welcomeScreen.style.display = 'flex';
@@ -462,7 +457,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 100);
   }
 
-  // Navegación
   document.getElementById('backToWelcome').addEventListener('click', () => {
     if (confirm('¿Reiniciar?')) location.reload();
   });
@@ -475,14 +469,12 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.classList.remove('open');
   });
 
-  // Control de círculos con slider
   document.getElementById('circleSlider').addEventListener('input', (e) => {
     circleCount = parseInt(e.target.value);
     document.getElementById('circleCount').textContent = circleCount;
     requestDraw();
   });
 
-  // Mover guías
   const guideCanvas = document.getElementById('guideCanvas');
   
   document.getElementById('moveGuideBtn').addEventListener('click', function() {
@@ -513,7 +505,6 @@ document.addEventListener('DOMContentLoaded', () => {
     requestDraw();
   });
 
-  // Controles de estilo
   document.getElementById('lineWidth').addEventListener('input', (e) => {
     document.getElementById('lineWidthValue').textContent = e.target.value;
     requestDraw();
@@ -528,7 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
     requestDraw();
   });
 
-  // Dibujar guías (SISTEMA FINAL)
   function drawGuides() {
     const canvas = document.getElementById('guideCanvas');
     const ctx = canvas.getContext('2d');
@@ -547,32 +537,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const centerX = w/2 + offsetX;
     const centerY = h/2 + offsetY;
     
-    // Calcular radio basado en altura y cantidad de círculos
-    const radius = (h * 0.7) / (circleCount * 1.8);
-    const spacing = radius * 2.1;
-    const startY = centerY - (spacing * (circleCount - 1)) / 2;
+    const usableHeight = h * 0.8;
+    const spacing = usableHeight / (circleCount + 1);
+    const radius = spacing * 0.45;
+    const startY = centerY - ((circleCount - 1) * spacing) / 2;
     
-    // Límites laterales
-    const sideOffset = radius * 1.4;
+    const sideOffset = w * 0.18;
     const leftX = centerX - sideOffset;
     const rightX = centerX + sideOffset;
-    
-    // =============================
-    // LÍNEAS VERTICALES
-    // =============================
     
     ctx.setLineDash([6, 6]);
     ctx.lineWidth = lineWidthVal;
     ctx.strokeStyle = color;
     ctx.globalAlpha = opacity;
     
-    // Centro vertical
     ctx.beginPath();
     ctx.moveTo(centerX, 0);
     ctx.lineTo(centerX, h);
     ctx.stroke();
     
-    // Límites laterales
     ctx.beginPath();
     ctx.moveTo(leftX, 0);
     ctx.lineTo(leftX, h);
@@ -583,16 +566,12 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.lineTo(rightX, h);
     ctx.stroke();
     
-    // =============================
-    // CÍRCULOS
-    // =============================
-    
     ctx.setLineDash([6, 6]);
     
     let centers = [];
     
     for (let i = 0; i < circleCount; i++) {
-      const y = startY + i * spacing + offsetY;
+      const y = startY + i * spacing;
       
       centers.push({ x: centerX, y });
       
@@ -600,10 +579,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.arc(centerX, y, radius, 0, Math.PI * 2);
       ctx.stroke();
     }
-    
-    // =============================
-    // DIÁMETROS Y DIAGONALES
-    // =============================
     
     ctx.setLineDash([]);
     ctx.lineWidth = lineWidthVal * 0.8;
@@ -613,13 +588,11 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const c = centers[i];
       
-      // Diámetro horizontal
       ctx.beginPath();
       ctx.moveTo(centerX - radius, c.y);
       ctx.lineTo(centerX + radius, c.y);
       ctx.stroke();
       
-      // Diagonales hacia bordes laterales
       ctx.beginPath();
       ctx.moveTo(centerX, c.y);
       ctx.lineTo(leftX, c.y - radius);
@@ -640,20 +613,14 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.lineTo(rightX, c.y + radius);
       ctx.stroke();
       
-      // =============================
-      // CONEXIÓN ENTRE CÍRCULOS (REBOTES)
-      // =============================
-      
       if (i > 0) {
         const prev = centers[i - 1];
         
-        // Rebote superior izquierdo
         ctx.beginPath();
         ctx.moveTo(leftX, c.y - radius);
         ctx.lineTo(centerX, prev.y);
         ctx.stroke();
         
-        // Rebote superior derecho
         ctx.beginPath();
         ctx.moveTo(rightX, c.y - radius);
         ctx.lineTo(centerX, prev.y);
@@ -663,13 +630,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (i < centers.length - 1) {
         const next = centers[i + 1];
         
-        // Rebote inferior izquierdo
         ctx.beginPath();
         ctx.moveTo(leftX, c.y + radius);
         ctx.lineTo(centerX, next.y);
         ctx.stroke();
         
-        // Rebote inferior derecho
         ctx.beginPath();
         ctx.moveTo(rightX, c.y + radius);
         ctx.lineTo(centerX, next.y);
@@ -680,7 +645,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.globalAlpha = 1;
   }
 
-  // Descargar (con toBlob para mejor calidad)
   document.getElementById('downloadBtn').addEventListener('click', () => {
     const canvas = document.createElement('canvas');
     const imgC = document.getElementById('imageCanvas');
@@ -702,9 +666,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// =============================
-// REGISTRO DEL SERVICE WORKER (PWA)
-// =============================
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
