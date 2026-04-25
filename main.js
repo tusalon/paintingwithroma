@@ -28,6 +28,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const NAIL_RATIO = 9/16;
   const MIN_FRAME_WIDTH = 80;
 
+  // === RAF para drawGuides ===
+  let isDrawing = false;
+
+  function requestDraw() {
+    if (isDrawing) return;
+    isDrawing = true;
+    
+    requestAnimationFrame(() => {
+      drawGuides();
+      isDrawing = false;
+    });
+  }
+
   // Inicialización
   document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
 
@@ -445,7 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
         drawX, drawY, drawWidth, drawHeight);
       
       cropMode.style.display = 'none';
-      drawGuides();
+      requestDraw();
     }, 100);
   }
 
@@ -466,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('circleSlider').addEventListener('input', (e) => {
     circleCount = parseInt(e.target.value);
     document.getElementById('circleCount').textContent = circleCount;
-    drawGuides();
+    requestDraw();
   });
 
   // Mover guías
@@ -491,28 +504,28 @@ document.addEventListener('DOMContentLoaded', () => {
     guideOffsetY += e.touches[0].clientY - lastTouchY;
     lastTouchX = e.touches[0].clientX;
     lastTouchY = e.touches[0].clientY;
-    drawGuides();
+    requestDraw();
   });
 
   document.getElementById('resetGuidesBtn').addEventListener('click', () => {
     guideOffsetX = 0;
     guideOffsetY = 0;
-    drawGuides();
+    requestDraw();
   });
 
   // Controles de estilo
   document.getElementById('lineWidth').addEventListener('input', (e) => {
     document.getElementById('lineWidthValue').textContent = e.target.value;
-    drawGuides();
+    requestDraw();
   });
   
   document.getElementById('opacity').addEventListener('input', (e) => {
     document.getElementById('opacityValue').textContent = e.target.value + '%';
-    drawGuides();
+    requestDraw();
   });
   
   document.getElementById('lineColor').addEventListener('input', () => {
-    drawGuides();
+    requestDraw();
   });
 
   // Dibujar guías (SISTEMA FINAL)
@@ -667,7 +680,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ctx.globalAlpha = 1;
   }
 
-  // Descargar
+  // Descargar (con toBlob para mejor calidad)
   document.getElementById('downloadBtn').addEventListener('click', () => {
     const canvas = document.createElement('canvas');
     const imgC = document.getElementById('imageCanvas');
@@ -677,9 +690,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(imgC, 0, 0);
     ctx.drawImage(guideC, 0, 0);
-    const a = document.createElement('a');
-    a.download = `guia-${Date.now()}.png`;
-    a.href = canvas.toDataURL();
-    a.click();
+    
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.download = `guia-${Date.now()}.png`;
+      a.href = url;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   });
 });
+
+// =============================
+// REGISTRO DEL SERVICE WORKER (PWA)
+// =============================
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('SW registrado:', reg.scope))
+      .catch(err => console.log('Error SW:', err));
+  });
+}
