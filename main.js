@@ -542,29 +542,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const radius = spacing * 0.45;
     const startY = centerY - ((circleCount - 1) * spacing) / 2;
     
-    const sideOffset = w * 0.18;
-    const leftX = centerX - sideOffset;
-    const rightX = centerX + sideOffset;
+    // =============================
+    // LÍNEAS VERTICALES (3 líneas: centro + bordes de círculo)
+    // =============================
     
     ctx.setLineDash([6, 6]);
     ctx.lineWidth = lineWidthVal;
     ctx.strokeStyle = color;
     ctx.globalAlpha = opacity;
     
-    ctx.beginPath();
-    ctx.moveTo(centerX, 0);
-    ctx.lineTo(centerX, h);
-    ctx.stroke();
+    [centerX, centerX - radius, centerX + radius].forEach(x => {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    });
     
-    ctx.beginPath();
-    ctx.moveTo(leftX, 0);
-    ctx.lineTo(leftX, h);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(rightX, 0);
-    ctx.lineTo(rightX, h);
-    ctx.stroke();
+    // =============================
+    // CÍRCULOS
+    // =============================
     
     ctx.setLineDash([6, 6]);
     
@@ -580,66 +576,42 @@ document.addEventListener('DOMContentLoaded', () => {
       ctx.stroke();
     }
     
+    // =============================
+    // DIÁMETROS HORIZONTALES
+    // =============================
+    
     ctx.setLineDash([]);
     ctx.lineWidth = lineWidthVal * 0.8;
     ctx.globalAlpha = opacity * 0.9;
     
-    for (let i = 0; i < centers.length; i++) {
-      
-      const c = centers[i];
-      
+    centers.forEach(c => {
       ctx.beginPath();
       ctx.moveTo(centerX - radius, c.y);
       ctx.lineTo(centerX + radius, c.y);
       ctx.stroke();
+    });
+    
+    // =============================
+    // ROMBOS LIMPIOS (Diamante superior + inferior entre cada par)
+    // =============================
+    
+    for (let i = 0; i < centers.length - 1; i++) {
+      const curr = centers[i];
+      const next = centers[i + 1];
       
+      // Diamante superior (V invertida: bordes de arriba → centro de abajo)
       ctx.beginPath();
-      ctx.moveTo(centerX, c.y);
-      ctx.lineTo(leftX, c.y - radius);
+      ctx.moveTo(centerX - radius, curr.y);
+      ctx.lineTo(centerX, next.y);
+      ctx.lineTo(centerX + radius, curr.y);
       ctx.stroke();
       
+      // Diamante inferior (V: centro de arriba → bordes de abajo)
       ctx.beginPath();
-      ctx.moveTo(centerX, c.y);
-      ctx.lineTo(rightX, c.y - radius);
+      ctx.moveTo(centerX - radius, next.y);
+      ctx.lineTo(centerX, curr.y);
+      ctx.lineTo(centerX + radius, next.y);
       ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(centerX, c.y);
-      ctx.lineTo(leftX, c.y + radius);
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(centerX, c.y);
-      ctx.lineTo(rightX, c.y + radius);
-      ctx.stroke();
-      
-      if (i > 0) {
-        const prev = centers[i - 1];
-        
-        ctx.beginPath();
-        ctx.moveTo(leftX, c.y - radius);
-        ctx.lineTo(centerX, prev.y);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(rightX, c.y - radius);
-        ctx.lineTo(centerX, prev.y);
-        ctx.stroke();
-      }
-      
-      if (i < centers.length - 1) {
-        const next = centers[i + 1];
-        
-        ctx.beginPath();
-        ctx.moveTo(leftX, c.y + radius);
-        ctx.lineTo(centerX, next.y);
-        ctx.stroke();
-        
-        ctx.beginPath();
-        ctx.moveTo(rightX, c.y + radius);
-        ctx.lineTo(centerX, next.y);
-        ctx.stroke();
-      }
     }
     
     ctx.globalAlpha = 1;
