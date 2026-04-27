@@ -527,28 +527,31 @@
     const baseHeight = Math.min(h, w / NAIL_RATIO);
     const guideHeight = baseHeight * state.guide.scale;
     const guideWidth = guideHeight * NAIL_RATIO;
-    const topY = -guideHeight / 2;
-    const bottomY = guideHeight / 2;
-    const leftX = -guideWidth / 2;
-    const rightX = guideWidth / 2;
+    const insetX = guideWidth * 0.045;
+    const insetY = guideHeight * 0.04;
+    const topY = -guideHeight / 2 + insetY;
+    const bottomY = guideHeight / 2 - insetY;
+    const leftX = -guideWidth / 2 + insetX;
+    const rightX = guideWidth / 2 - insetX;
+    const innerHeight = bottomY - topY;
+    const innerWidth = rightX - leftX;
     const frame = {
       topLeft: [leftX, topY],
       topRight: [rightX, topY],
       bottomRight: [rightX, bottomY],
       bottomLeft: [leftX, bottomY]
     };
-    const circleTotal = state.guide.circleCount;
-    const spacing = guideHeight / circleTotal;
-    const radius = Math.min(spacing * 0.48, guideWidth * 0.46);
-    const circles = [];
-
-    for (let i = 0; i < circleTotal; i += 1) {
-      circles.push({
-        x: 0,
-        y: bottomY - spacing * (i + 0.5),
-        r: radius
-      });
-    }
+    const centers = [
+      { x: 0, y: topY + innerHeight * 0.18, r: innerWidth * 0.19 },
+      { x: 0, y: topY + innerHeight * 0.51, r: innerWidth * 0.22 },
+      { x: 0, y: topY + innerHeight * 0.82, r: innerWidth * 0.19 }
+    ];
+    const sideLeftTop = [leftX, topY + innerHeight * 0.25];
+    const sideRightTop = [rightX, topY + innerHeight * 0.25];
+    const sideLeftMid = [leftX, topY + innerHeight * 0.50];
+    const sideRightMid = [rightX, topY + innerHeight * 0.50];
+    const sideLeftBottom = [leftX, topY + innerHeight * 0.76];
+    const sideRightBottom = [rightX, topY + innerHeight * 0.76];
 
     ctx.save();
     ctx.translate(centerX, centerY);
@@ -576,50 +579,91 @@
     ctx.lineWidth = Math.max(1.1, lineWidth * 0.85);
 
     drawLine(ctx, 0, topY, 0, bottomY);
-    drawLine(ctx, leftX, 0, rightX, 0);
-    drawLine(ctx, leftX, topY, rightX, bottomY);
-    drawLine(ctx, rightX, topY, leftX, bottomY);
-    drawLine(ctx, leftX * 0.5, topY, rightX * 0.5, bottomY);
-    drawLine(ctx, rightX * 0.5, topY, leftX * 0.5, bottomY);
+    drawLine(ctx, leftX, centers[1].y, rightX, centers[1].y);
 
-    drawSmoothPath(ctx, [
-      [leftX, topY],
-      [leftX * 0.2, circles[circles.length - 1].y],
-      [leftX * 0.86, circles[1]?.y || 0],
-      [leftX, bottomY]
-    ]);
-    drawSmoothPath(ctx, [
-      [rightX, topY],
-      [rightX * 0.2, circles[circles.length - 1].y],
-      [rightX * 0.86, circles[1]?.y || 0],
-      [rightX, bottomY]
-    ]);
-
-    circles.forEach((circle) => {
-      drawCircle(ctx, circle.x, circle.y, circle.r);
-      drawCircle(ctx, circle.x, circle.y, circle.r * 0.5);
-      drawLine(ctx, circle.x - circle.r, circle.y, circle.x + circle.r, circle.y);
-      drawLine(ctx, circle.x, circle.y - circle.r, circle.x, circle.y + circle.r);
+    centers.forEach((center) => {
+      drawCircle(ctx, center.x, center.y, center.r);
+      drawCircle(ctx, center.x, center.y, center.r * 0.52);
+      drawLine(ctx, center.x - center.r, center.y, center.x + center.r, center.y);
+      drawLine(ctx, center.x, center.y - center.r, center.x, center.y + center.r);
     });
 
-    circles.forEach((circle, index) => {
-      drawArc(ctx, circle.x, circle.y, circle.r * 1.35, -2.72 + index * 0.2, 0.55 + index * 0.12);
-      drawLine(ctx, circle.x, circle.y, leftX, circle.y - spacing * 0.5);
-      drawLine(ctx, circle.x, circle.y, rightX, circle.y + spacing * 0.5);
-      drawLine(ctx, circle.x, circle.y, rightX, circle.y - spacing * 0.5);
-      drawLine(ctx, circle.x, circle.y, leftX, circle.y + spacing * 0.5);
-    });
+    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], centers[0].x, centers[0].y);
+    drawLine(ctx, frame.topRight[0], frame.topRight[1], centers[0].x, centers[0].y);
+    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], centers[1].x, centers[1].y);
+    drawLine(ctx, frame.topRight[0], frame.topRight[1], centers[1].x, centers[1].y);
 
-    drawPathThrough(ctx, circles.map((circle) => [circle.x, circle.y]));
+    drawLine(ctx, frame.bottomLeft[0], frame.bottomLeft[1], centers[2].x, centers[2].y);
+    drawLine(ctx, frame.bottomRight[0], frame.bottomRight[1], centers[2].x, centers[2].y);
+    drawLine(ctx, frame.bottomLeft[0], frame.bottomLeft[1], centers[1].x, centers[1].y);
+    drawLine(ctx, frame.bottomRight[0], frame.bottomRight[1], centers[1].x, centers[1].y);
+
+    drawLine(ctx, sideLeftTop[0], sideLeftTop[1], centers[1].x, centers[1].y);
+    drawLine(ctx, sideRightTop[0], sideRightTop[1], centers[1].x, centers[1].y);
+    drawLine(ctx, sideLeftMid[0], sideLeftMid[1], centers[0].x, centers[0].y);
+    drawLine(ctx, sideRightMid[0], sideRightMid[1], centers[0].x, centers[0].y);
+    drawLine(ctx, sideLeftMid[0], sideLeftMid[1], centers[2].x, centers[2].y);
+    drawLine(ctx, sideRightMid[0], sideRightMid[1], centers[2].x, centers[2].y);
+    drawLine(ctx, sideLeftBottom[0], sideLeftBottom[1], centers[1].x, centers[1].y);
+    drawLine(ctx, sideRightBottom[0], sideRightBottom[1], centers[1].x, centers[1].y);
+
+    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], frame.bottomRight[0], frame.bottomRight[1]);
+    drawLine(ctx, frame.topRight[0], frame.topRight[1], frame.bottomLeft[0], frame.bottomLeft[1]);
+    drawPathThrough(ctx, centers.map((center) => [center.x, center.y]));
+
+    drawSmoothPath(ctx, [
+      frame.topLeft,
+      [leftX + innerWidth * 0.24, topY + innerHeight * 0.24],
+      [leftX + innerWidth * 0.06, topY + innerHeight * 0.52],
+      [leftX + innerWidth * 0.26, topY + innerHeight * 0.78],
+      frame.bottomLeft
+    ]);
+    drawSmoothPath(ctx, [
+      frame.topRight,
+      [rightX - innerWidth * 0.24, topY + innerHeight * 0.24],
+      [rightX - innerWidth * 0.06, topY + innerHeight * 0.52],
+      [rightX - innerWidth * 0.26, topY + innerHeight * 0.78],
+      frame.bottomRight
+    ]);
+
+    drawArc(ctx, centers[0].x, centers[0].y, centers[0].r * 1.56, Math.PI * 0.95, Math.PI * 2.08);
+    drawArc(ctx, centers[1].x, centers[1].y, centers[1].r * 1.72, Math.PI * 1.06, Math.PI * 1.95);
+    drawArc(ctx, centers[2].x, centers[2].y, centers[2].r * 1.55, Math.PI * 0.95, Math.PI * 2.05);
+
+    drawRadialFan(ctx, centers[0], [
+      frame.topLeft,
+      [leftX + innerWidth * 0.24, topY],
+      [rightX - innerWidth * 0.24, topY],
+      frame.topRight,
+      sideLeftTop,
+      sideRightTop
+    ]);
+    drawRadialFan(ctx, centers[1], [
+      sideLeftTop,
+      sideRightTop,
+      sideLeftMid,
+      sideRightMid,
+      sideLeftBottom,
+      sideRightBottom,
+      [leftX + innerWidth * 0.22, bottomY],
+      [rightX - innerWidth * 0.22, bottomY]
+    ]);
+    drawRadialFan(ctx, centers[2], [
+      frame.bottomLeft,
+      [leftX + innerWidth * 0.28, bottomY],
+      [rightX - innerWidth * 0.28, bottomY],
+      frame.bottomRight,
+      sideLeftBottom,
+      sideRightBottom
+    ]);
 
     ctx.globalAlpha = Math.min(1, opacity + 0.16);
-    circles.forEach((circle) => drawDot(ctx, circle.x, circle.y, lineWidth * 1.45));
+    centers.forEach((center) => drawDot(ctx, center.x, center.y, lineWidth * 1.45));
     [frame.topLeft, frame.topRight, frame.bottomRight, frame.bottomLeft].forEach((anchor) => {
       drawDot(ctx, anchor[0], anchor[1], lineWidth * 0.8);
     });
 
     ctx.restore();
-
     ctx.restore();
   }
 
@@ -647,6 +691,10 @@
     ctx.beginPath();
     ctx.arc(x, y, radius, startAngle, endAngle);
     ctx.stroke();
+  }
+
+  function drawRadialFan(ctx, center, points) {
+    points.forEach(([x, y]) => drawLine(ctx, center.x, center.y, x, y));
   }
 
   function drawPathThrough(ctx, points) {
