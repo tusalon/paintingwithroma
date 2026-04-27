@@ -329,6 +329,43 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.segmented-control input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented-control label {
+  min-height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--muted);
+  font-weight: 900;
+  text-align: center;
+}
+
+.segmented-control input:checked + label {
+  background: var(--brand);
+  color: white;
+  box-shadow: 0 10px 24px rgba(255, 95, 168, 0.24);
+}
+
+.segmented-control input:focus-visible + label {
+  outline: 3px solid rgba(36, 212, 255, 0.72);
+  outline-offset: 2px;
+}
+
 .control-row {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr) 52px;

@@ -51,6 +51,9 @@
     $('toggleSettings').addEventListener('click', () => setSettingsOpen(!$('settingsPanel').classList.contains('open')));
     $('closeSettings').addEventListener('click', () => setSettingsOpen(false));
     $('lineColor').addEventListener('input', requestGuideDraw);
+    document.querySelectorAll('input[name="guideMode"]').forEach((input) => {
+      input.addEventListener('change', requestGuideDraw);
+    });
     $('moveGuideBtn').addEventListener('click', toggleMoveMode);
     $('resetGuidesBtn').addEventListener('click', resetGuides);
     $('downloadBtn').addEventListener('click', downloadComposite);
@@ -379,7 +382,14 @@
     if (!w || !h) return;
 
     ctx.clearRect(0, 0, w, h);
+    if (getGuideMode() === 'structure') {
+      drawStructureGuides(ctx, w, h);
+      return;
+    }
+    drawBallerinaGuides(ctx, w, h);
+  }
 
+  function drawBallerinaGuides(ctx, w, h) {
     const color = $('lineColor').value;
     const opacity = Number($('opacity').value) / 100;
     const lineWidth = Number($('lineWidth').value);
@@ -423,6 +433,82 @@
     ctx.restore();
   }
 
+  function drawStructureGuides(ctx, w, h) {
+    const opacity = Number($('opacity').value) / 100;
+    const lineWidth = Number($('lineWidth').value);
+    const centerX = w / 2 + state.guide.offsetX;
+    const centerY = h / 2 + state.guide.offsetY;
+    const guideHeight = h * 0.82;
+    const guideWidth = Math.min(w * 0.74, guideHeight * 0.42);
+    const topY = centerY - guideHeight / 2;
+    const bottomY = centerY + guideHeight / 2;
+    const topHalf = guideWidth * 0.34;
+    const bottomHalf = guideWidth * 0.52;
+    const railGap = guideWidth * 0.12;
+    const levels = 8;
+    const leftTop = centerX - topHalf;
+    const rightTop = centerX + topHalf;
+    const leftBottom = centerX - bottomHalf;
+    const rightBottom = centerX + bottomHalf;
+    const points = [];
+
+    for (let i = 0; i <= levels; i += 1) {
+      const t = i / levels;
+      const y = lerp(topY, bottomY, t);
+      const left = lerp(leftTop, leftBottom, t);
+      const right = lerp(rightTop, rightBottom, t);
+      points.push({
+        y,
+        left,
+        center: centerX,
+        right,
+        innerLeft: lerp(left + railGap, centerX - railGap * 0.45, t),
+        innerRight: lerp(right - railGap, centerX + railGap * 0.45, t)
+      });
+    }
+
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalAlpha = opacity;
+
+    ctx.strokeStyle = '#19bdf2';
+    ctx.lineWidth = Math.max(1, lineWidth * 1.15);
+    ctx.setLineDash([]);
+    drawPathThrough(ctx, points.map((point) => [point.left, point.y]));
+    drawPathThrough(ctx, points.map((point) => [point.innerLeft, point.y]));
+    drawPathThrough(ctx, points.map((point) => [point.innerRight, point.y]));
+    drawPathThrough(ctx, points.map((point) => [point.right, point.y]));
+
+    ctx.strokeStyle = '#f0342f';
+    ctx.fillStyle = '#f0342f';
+    ctx.lineWidth = Math.max(1, lineWidth * 0.85);
+
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const current = points[i];
+      const next = points[i + 1];
+      drawLine(ctx, current.left, current.y, next.right, next.y);
+      drawLine(ctx, current.right, current.y, next.left, next.y);
+      drawLine(ctx, current.center, current.y, next.left, next.y);
+      drawLine(ctx, current.center, current.y, next.right, next.y);
+    }
+
+    ctx.globalAlpha = opacity * 0.88;
+    points.forEach((point, index) => {
+      drawLine(ctx, point.left, point.y, point.right, point.y);
+      if (index % 2 === 0) drawLine(ctx, point.center, point.y, point.right, point.y);
+    });
+
+    ctx.globalAlpha = Math.min(1, opacity + 0.12);
+    points.forEach((point) => {
+      drawDot(ctx, point.left, point.y, lineWidth);
+      drawDot(ctx, point.center, point.y, lineWidth);
+      drawDot(ctx, point.right, point.y, lineWidth);
+    });
+
+    ctx.restore();
+  }
+
   function drawLine(ctx, x1, y1, x2, y2) {
     ctx.beginPath();
     ctx.moveTo(x1, y1);
@@ -435,6 +521,27 @@
     ctx.moveTo(points[0][0], points[0][1]);
     points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
     ctx.stroke();
+  }
+
+  function drawPathThrough(ctx, points) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.stroke();
+  }
+
+  function drawDot(ctx, x, y, lineWidth) {
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(2.2, lineWidth * 1.7), 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function getGuideMode() {
+    return document.querySelector('input[name="guideMode"]:checked')?.value || 'ballerina';
+  }
+
+  function lerp(start, end, amount) {
+    return start + (end - start) * amount;
   }
 
   function downloadComposite() {
