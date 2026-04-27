@@ -261,6 +261,14 @@ input:focus-visible {
   touch-action: none;
 }
 
+.work-workspace.moving-guides {
+  cursor: grab;
+}
+
+.work-workspace.moving-guides:active {
+  cursor: grabbing;
+}
+
 .settings-panel {
   position: absolute;
   right: 0;

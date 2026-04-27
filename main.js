@@ -337,18 +337,18 @@
   }
 
   function bindGuidePointerEvents() {
-    const canvas = $('guideCanvas');
+    const workspace = $('workWorkspace');
 
-    canvas.addEventListener('pointerdown', (event) => {
+    workspace.addEventListener('pointerdown', (event) => {
       if (!state.guide.moving) return;
       event.preventDefault();
       state.guide.dragging = true;
       state.guide.lastX = event.clientX;
       state.guide.lastY = event.clientY;
-      canvas.setPointerCapture?.(event.pointerId);
+      workspace.setPointerCapture?.(event.pointerId);
     });
 
-    canvas.addEventListener('pointermove', (event) => {
+    workspace.addEventListener('pointermove', (event) => {
       if (!state.guide.moving || !state.guide.dragging) return;
       event.preventDefault();
       state.guide.offsetX += event.clientX - state.guide.lastX;
@@ -369,6 +369,8 @@
     button.classList.toggle('active', state.guide.moving);
     button.setAttribute('aria-pressed', String(state.guide.moving));
     button.textContent = state.guide.moving ? 'Fijar gu\u00edas' : 'Mover gu\u00edas';
+    $('workWorkspace').classList.toggle('moving-guides', state.guide.moving);
+    if (state.guide.moving) setSettingsOpen(false);
   }
 
   function resetGuides() {
@@ -450,30 +452,42 @@
     const lineWidth = Number($('lineWidth').value);
     const centerX = w / 2 + state.guide.offsetX;
     const centerY = h / 2 + state.guide.offsetY;
-    const guideHeight = h * 0.88 * state.guide.scale;
-    const guideWidth = Math.min(w * 0.86, h * 0.5) * state.guide.scale;
+    const baseHeight = Math.min(h * 0.88, (w * 0.9) / NAIL_RATIO);
+    const guideHeight = baseHeight * state.guide.scale;
+    const guideWidth = guideHeight * NAIL_RATIO;
     const topY = -guideHeight / 2;
     const bottomY = guideHeight / 2;
+    const leftX = -guideWidth / 2;
+    const rightX = guideWidth / 2;
     const frame = {
-      topLeft: [-guideWidth * 0.44, topY],
-      topRight: [guideWidth * 0.42, topY + guideHeight * 0.03],
-      bottomRight: [guideWidth * 0.5, bottomY],
-      bottomLeft: [-guideWidth * 0.36, bottomY - guideHeight * 0.02]
+      topLeft: [leftX, topY],
+      topRight: [rightX, topY + guideHeight * 0.025],
+      bottomRight: [rightX * 0.96, bottomY],
+      bottomLeft: [leftX * 0.94, bottomY - guideHeight * 0.025]
     };
-    const stars = [
-      { x: -guideWidth * 0.32, y: -guideHeight * 0.36, r: guideWidth * 0.38 },
-      { x: -guideWidth * 0.02, y: -guideHeight * 0.06, r: guideWidth * 0.34 },
-      { x: guideWidth * 0.34, y: guideHeight * 0.28, r: guideWidth * 0.35 }
-    ];
+    const circleTotal = state.guide.circleCount;
+    const spacing = guideHeight / (circleTotal + 1);
+    const radius = spacing * 0.62;
+    const circles = [];
+
+    for (let i = 0; i < circleTotal; i += 1) {
+      const t = circleTotal === 1 ? 0 : i / (circleTotal - 1);
+      circles.push({
+        x: lerp(guideWidth * 0.16, -guideWidth * 0.16, t),
+        y: bottomY - spacing * (i + 1),
+        r: radius
+      });
+    }
+
     const anchors = [
       frame.topLeft,
       [0, topY + guideHeight * 0.02],
       frame.topRight,
-      [guideWidth * 0.28, -guideHeight * 0.18],
-      [-guideWidth * 0.42, -guideHeight * 0.08],
-      [guideWidth * 0.46, guideHeight * 0.05],
-      [-guideWidth * 0.3, guideHeight * 0.2],
-      [0, guideHeight * 0.43],
+      [rightX, -guideHeight * 0.16],
+      [leftX, -guideHeight * 0.08],
+      [rightX * 0.95, guideHeight * 0.08],
+      [leftX * 0.82, guideHeight * 0.24],
+      [0, bottomY - guideHeight * 0.02],
       frame.bottomRight,
       frame.bottomLeft
     ];
@@ -503,32 +517,29 @@
     ctx.fillStyle = '#0b68ff';
     ctx.lineWidth = Math.max(1.1, lineWidth * 0.85);
 
-    stars.forEach((star) => {
-      drawCircle(ctx, star.x, star.y, star.r);
-      drawCircle(ctx, star.x, star.y, star.r * 0.62);
+    circles.forEach((circle) => {
+      drawCircle(ctx, circle.x, circle.y, circle.r);
+      drawCircle(ctx, circle.x, circle.y, circle.r * 0.5);
     });
 
-    drawArc(ctx, stars[0].x, stars[0].y, stars[0].r * 1.55, -0.4, 1.15);
-    drawArc(ctx, stars[1].x, stars[1].y, stars[1].r * 1.38, -2.45, 0.7);
-    drawArc(ctx, stars[2].x, stars[2].y, stars[2].r * 1.45, -2.8, 0.25);
-
-    stars.forEach((star, starIndex) => {
+    circles.forEach((circle, index) => {
+      drawArc(ctx, circle.x, circle.y, circle.r * 1.52, -2.72 + index * 0.25, 0.62 + index * 0.18);
       anchors.forEach((anchor, anchorIndex) => {
-        if ((anchorIndex + starIndex) % 2 === 0 || anchorIndex < 3) {
-          drawLine(ctx, star.x, star.y, anchor[0], anchor[1]);
+        if (anchorIndex < 3 || (anchorIndex + index) % 2 === 0) {
+          drawLine(ctx, circle.x, circle.y, anchor[0], anchor[1]);
         }
       });
     });
 
     drawLine(ctx, frame.topLeft[0], frame.topLeft[1], frame.bottomRight[0], frame.bottomRight[1]);
     drawLine(ctx, frame.topRight[0], frame.topRight[1], frame.bottomLeft[0], frame.bottomLeft[1]);
-    drawLine(ctx, stars[0].x, stars[0].y, stars[2].x, stars[2].y);
-    drawLine(ctx, -guideWidth * 0.48, -guideHeight * 0.02, guideWidth * 0.48, guideHeight * 0.04);
-    drawLine(ctx, -guideWidth * 0.18, topY, guideWidth * 0.12, bottomY);
-    drawLine(ctx, guideWidth * 0.36, topY, guideWidth * 0.2, bottomY);
+    drawPathThrough(ctx, circles.map((circle) => [circle.x, circle.y]));
+    drawLine(ctx, leftX, -guideHeight * 0.02, rightX, guideHeight * 0.04);
+    drawLine(ctx, leftX * 0.45, topY, rightX * 0.22, bottomY);
+    drawLine(ctx, rightX * 0.72, topY, rightX * 0.34, bottomY);
 
     ctx.globalAlpha = Math.min(1, opacity + 0.16);
-    stars.forEach((star) => drawDot(ctx, star.x, star.y, lineWidth * 1.45));
+    circles.forEach((circle) => drawDot(ctx, circle.x, circle.y, lineWidth * 1.45));
     anchors.forEach((anchor, index) => {
       if (index % 2 === 0) drawDot(ctx, anchor[0], anchor[1], lineWidth * 0.8);
     });
