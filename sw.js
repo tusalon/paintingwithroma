@@ -1,9 +1,9 @@
-const CACHE_NAME = 'paintingwithroma-v4';
+const CACHE_NAME = 'paintingwithroma-v5';
 const PRECACHE_URLS = [
   './',
   './index.html',
-  './styles.css?v=20260427-3',
-  './main.js?v=20260427-3',
+  './styles.css?v=20260427-4',
+  './main.js?v=20260427-4',
   './manifest.json',
   './favicon.png',
   './icons/icon-192x192.png',
