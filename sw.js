@@ -1,9 +1,9 @@
-const CACHE_NAME = 'paintingwithroma-v2';
+const CACHE_NAME = 'paintingwithroma-v4';
 const PRECACHE_URLS = [
   './',
   './index.html',
-  './styles.css',
-  './main.js',
+  './styles.css?v=20260427-3',
+  './main.js?v=20260427-3',
   './manifest.json',
   './favicon.png',
   './icons/icon-192x192.png',
@@ -30,10 +30,7 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
-      return fetch(event.request)
+    fetch(event.request)
         .then((networkResponse) => {
           if (!networkResponse || networkResponse.status !== 200 || networkResponse.type === 'opaque') {
             return networkResponse;
@@ -43,10 +40,12 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
           return networkResponse;
         })
-        .catch(() => {
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
           if (event.request.mode === 'navigate') return caches.match('./index.html');
           return undefined;
         });
-    })
+      })
   );
 });

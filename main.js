@@ -67,6 +67,7 @@
     document.querySelectorAll('input[name="guideMode"]').forEach((input) => {
       input.addEventListener('change', requestGuideDraw);
     });
+    $('fitGuidesBtn').addEventListener('click', fitGuidesToFrame);
     $('moveGuideBtn').addEventListener('click', toggleMoveMode);
     $('resetGuidesBtn').addEventListener('click', resetGuides);
     $('downloadBtn').addEventListener('click', downloadComposite);
@@ -307,6 +308,7 @@
   function setupWorkMode() {
     showWorkMode();
     setSettingsOpen(false);
+    fitGuidesToFrame();
     requestAnimationFrame(drawImageCanvas);
   }
 
@@ -437,6 +439,10 @@
   }
 
   function resetGuides() {
+    fitGuidesToFrame();
+  }
+
+  function fitGuidesToFrame() {
     state.guide.offsetX = 0;
     state.guide.offsetY = 0;
     state.guide.scale = 1;
