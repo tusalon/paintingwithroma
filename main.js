@@ -37,7 +37,7 @@
       lastY: 0,
       rotation: 0,
       scale: 1,
-      circleCount: 3,
+      circleCount: 4,
       pointers: new Map(),
       pinchStartDistance: 0,
       pinchStartAngle: 0,
@@ -540,12 +540,8 @@
     const br = point(1, 1);
     const bm = point(0.5, 1);
     const bl = point(0, 1);
-    const leftUpper = point(0, 0.27);
-    const rightUpper = point(1, 0.27);
     const leftMiddle = point(0, 0.52);
     const rightMiddle = point(1, 0.52);
-    const leftLower = point(0, 0.76);
-    const rightLower = point(1, 0.76);
     const topNode = node(0.5, 0.19, 0.19);
     const midNode = node(0.5, 0.52, 0.24);
     const bottomNode = node(0.5, 0.83, 0.19);
@@ -579,20 +575,10 @@
     drawLine(ctx, leftMiddle[0], leftMiddle[1], rightMiddle[0], rightMiddle[1]);
     drawLine(ctx, tl[0], tl[1], br[0], br[1]);
     drawLine(ctx, tr[0], tr[1], bl[0], bl[1]);
-    drawLine(ctx, point(0.25, 0)[0], point(0.25, 0)[1], point(0.75, 1)[0], point(0.75, 1)[1]);
-    drawLine(ctx, point(0.75, 0)[0], point(0.75, 0)[1], point(0.25, 1)[0], point(0.25, 1)[1]);
     drawLine(ctx, tl[0], tl[1], midNode.x, midNode.y);
     drawLine(ctx, tr[0], tr[1], midNode.x, midNode.y);
     drawLine(ctx, bl[0], bl[1], midNode.x, midNode.y);
     drawLine(ctx, br[0], br[1], midNode.x, midNode.y);
-    drawLine(ctx, leftUpper[0], leftUpper[1], midNode.x, midNode.y);
-    drawLine(ctx, rightUpper[0], rightUpper[1], midNode.x, midNode.y);
-    drawLine(ctx, leftLower[0], leftLower[1], midNode.x, midNode.y);
-    drawLine(ctx, rightLower[0], rightLower[1], midNode.x, midNode.y);
-    drawLine(ctx, leftMiddle[0], leftMiddle[1], topNode.x, topNode.y);
-    drawLine(ctx, rightMiddle[0], rightMiddle[1], topNode.x, topNode.y);
-    drawLine(ctx, leftMiddle[0], leftMiddle[1], bottomNode.x, bottomNode.y);
-    drawLine(ctx, rightMiddle[0], rightMiddle[1], bottomNode.x, bottomNode.y);
     drawPathThrough(ctx, [[topNode.x, topNode.y], [midNode.x, midNode.y], [bottomNode.x, bottomNode.y]]);
 
     [topNode, midNode, bottomNode].forEach((currentNode) => {
@@ -605,13 +591,9 @@
     drawSmoothPath(ctx, [tl, point(0.28, 0.22), point(0.05, 0.52), point(0.28, 0.78), bl]);
     drawSmoothPath(ctx, [tr, point(0.72, 0.22), point(0.95, 0.52), point(0.72, 0.78), br]);
 
-    drawArc(ctx, topNode.x, topNode.y, topNode.r * 1.55, Math.PI * 0.95, Math.PI * 2.05);
-    drawArc(ctx, midNode.x, midNode.y, midNode.r * 1.52, Math.PI * 1.02, Math.PI * 1.98);
-    drawArc(ctx, bottomNode.x, bottomNode.y, bottomNode.r * 1.55, Math.PI * 0.95, Math.PI * 2.05);
-
-    drawRadialFan(ctx, topNode, [tl, point(0.25, 0), point(0.75, 0), tr, leftUpper, rightUpper]);
-    drawRadialFan(ctx, midNode, [leftUpper, rightUpper, leftMiddle, rightMiddle, leftLower, rightLower, point(0.25, 1), point(0.75, 1)]);
-    drawRadialFan(ctx, bottomNode, [bl, point(0.25, 1), point(0.75, 1), br, leftLower, rightLower]);
+    drawArc(ctx, topNode.x, topNode.y, topNode.r * 1.45, Math.PI * 1.04, Math.PI * 1.96);
+    drawArc(ctx, midNode.x, midNode.y, midNode.r * 1.42, Math.PI * 1.04, Math.PI * 1.96);
+    drawArc(ctx, bottomNode.x, bottomNode.y, bottomNode.r * 1.45, Math.PI * 1.04, Math.PI * 1.96);
 
     ctx.globalAlpha = Math.min(1, opacity + 0.16);
     [topNode, midNode, bottomNode].forEach((currentNode) => drawDot(ctx, currentNode.x, currentNode.y, lineWidth * 1.45));
@@ -647,10 +629,6 @@
     ctx.beginPath();
     ctx.arc(x, y, radius, startAngle, endAngle);
     ctx.stroke();
-  }
-
-  function drawRadialFan(ctx, center, points) {
-    points.forEach(([x, y]) => drawLine(ctx, center.x, center.y, x, y));
   }
 
   function drawPathThrough(ctx, points) {
