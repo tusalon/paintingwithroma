@@ -3,6 +3,8 @@
 
   const NAIL_RATIO = 9 / 16;
   const MIN_FRAME_WIDTH = 80;
+  const GUIDE_SCALE_MIN = 0.25;
+  const GUIDE_SCALE_MAX = 2.5;
   const $ = (id) => document.getElementById(id);
 
   const state = {
@@ -35,7 +37,16 @@
       lastY: 0,
       rotation: 0,
       scale: 1,
-      circleCount: 3
+      circleCount: 3,
+      pointers: new Map(),
+      pinchStartDistance: 0,
+      pinchStartAngle: 0,
+      pinchStartScale: 1,
+      pinchStartRotation: 0,
+      pinchStartCenterX: 0,
+      pinchStartCenterY: 0,
+      pinchStartOffsetX: 0,
+      pinchStartOffsetY: 0
     }
   };
 
@@ -340,27 +351,79 @@
     const workspace = $('workWorkspace');
 
     workspace.addEventListener('pointerdown', (event) => {
-      if (!state.guide.moving) return;
       event.preventDefault();
+      state.guide.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       state.guide.dragging = true;
       state.guide.lastX = event.clientX;
       state.guide.lastY = event.clientY;
       workspace.setPointerCapture?.(event.pointerId);
+      if (state.guide.pointers.size === 2) startPinchGesture();
     });
 
     workspace.addEventListener('pointermove', (event) => {
-      if (!state.guide.moving || !state.guide.dragging) return;
+      if (!state.guide.dragging || !state.guide.pointers.has(event.pointerId)) return;
       event.preventDefault();
-      state.guide.offsetX += event.clientX - state.guide.lastX;
-      state.guide.offsetY += event.clientY - state.guide.lastY;
-      state.guide.lastX = event.clientX;
-      state.guide.lastY = event.clientY;
+      state.guide.pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+      if (state.guide.pointers.size >= 2) {
+        updatePinchGesture();
+      } else {
+        state.guide.offsetX += event.clientX - state.guide.lastX;
+        state.guide.offsetY += event.clientY - state.guide.lastY;
+        state.guide.lastX = event.clientX;
+        state.guide.lastY = event.clientY;
+      }
+
       requestGuideDraw();
     });
 
-    window.addEventListener('pointerup', () => {
+    window.addEventListener('pointerup', endGuidePointer);
+    window.addEventListener('pointercancel', endGuidePointer);
+  }
+
+  function startPinchGesture() {
+    const [first, second] = [...state.guide.pointers.values()];
+    const center = getGestureCenter(first, second);
+    state.guide.pinchStartDistance = getGestureDistance(first, second);
+    state.guide.pinchStartAngle = getGestureAngle(first, second);
+    state.guide.pinchStartScale = state.guide.scale;
+    state.guide.pinchStartRotation = state.guide.rotation;
+    state.guide.pinchStartCenterX = center.x;
+    state.guide.pinchStartCenterY = center.y;
+    state.guide.pinchStartOffsetX = state.guide.offsetX;
+    state.guide.pinchStartOffsetY = state.guide.offsetY;
+  }
+
+  function updatePinchGesture() {
+    const [first, second] = [...state.guide.pointers.values()];
+    const distance = getGestureDistance(first, second);
+    const angle = getGestureAngle(first, second);
+    const center = getGestureCenter(first, second);
+    const nextScale = state.guide.pinchStartScale * (distance / state.guide.pinchStartDistance);
+
+    state.guide.scale = clamp(nextScale, GUIDE_SCALE_MIN, GUIDE_SCALE_MAX);
+    state.guide.rotation = clamp(
+      state.guide.pinchStartRotation + angle - state.guide.pinchStartAngle,
+      Number($('guideRotation').min),
+      Number($('guideRotation').max)
+    );
+    state.guide.offsetX = state.guide.pinchStartOffsetX + center.x - state.guide.pinchStartCenterX;
+    state.guide.offsetY = state.guide.pinchStartOffsetY + center.y - state.guide.pinchStartCenterY;
+    syncGuideTransformControls();
+  }
+
+  function endGuidePointer(event) {
+    state.guide.pointers.delete(event.pointerId);
+
+    if (state.guide.pointers.size === 0) {
       state.guide.dragging = false;
-    });
+      return;
+    }
+
+    const remaining = [...state.guide.pointers.values()][0];
+    state.guide.lastX = remaining.x;
+    state.guide.lastY = remaining.y;
+    if (state.guide.pointers.size === 2) startPinchGesture();
   }
 
   function toggleMoveMode() {
@@ -605,6 +668,37 @@
 
   function getGuideMode() {
     return document.querySelector('input[name="guideMode"]:checked')?.value || 'ballerina';
+  }
+
+  function syncGuideTransformControls() {
+    const scaleInput = $('guideScale');
+    const scaleOutput = $('guideScaleValue');
+    const rotationInput = $('guideRotation');
+    const rotationOutput = $('guideRotationValue');
+    const scalePercent = Math.round(state.guide.scale * 100);
+    const rotationDegrees = Math.round(state.guide.rotation);
+
+    scaleInput.value = String(clamp(scalePercent, Number(scaleInput.min), Number(scaleInput.max)));
+    scaleOutput.value = `${scaleInput.value}%`;
+    scaleOutput.textContent = scaleOutput.value;
+    rotationInput.value = String(clamp(rotationDegrees, Number(rotationInput.min), Number(rotationInput.max)));
+    rotationOutput.value = `${rotationInput.value}\u00b0`;
+    rotationOutput.textContent = rotationOutput.value;
+  }
+
+  function getGestureDistance(first, second) {
+    return Math.hypot(second.x - first.x, second.y - first.y) || 1;
+  }
+
+  function getGestureAngle(first, second) {
+    return (Math.atan2(second.y - first.y, second.x - first.x) * 180) / Math.PI;
+  }
+
+  function getGestureCenter(first, second) {
+    return {
+      x: (first.x + second.x) / 2,
+      y: (first.y + second.y) / 2
+    };
   }
 
   function lerp(start, end, amount) {
