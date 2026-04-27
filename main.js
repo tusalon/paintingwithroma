@@ -33,6 +33,8 @@
       dragging: false,
       lastX: 0,
       lastY: 0,
+      rotation: 0,
+      scale: 1,
       circleCount: 3
     }
   };
@@ -68,6 +70,16 @@
       return value;
     });
     bindRange('opacity', 'opacityValue', (value) => {
+      requestGuideDraw();
+      return `${value}%`;
+    });
+    bindRange('guideRotation', 'guideRotationValue', (value) => {
+      state.guide.rotation = Number(value);
+      requestGuideDraw();
+      return `${value}\u00b0`;
+    });
+    bindRange('guideScale', 'guideScaleValue', (value) => {
+      state.guide.scale = Number(value) / 100;
       requestGuideDraw();
       return `${value}%`;
     });
@@ -438,65 +450,66 @@
     const lineWidth = Number($('lineWidth').value);
     const centerX = w / 2 + state.guide.offsetX;
     const centerY = h / 2 + state.guide.offsetY;
-    const guideHeight = h * 0.82;
-    const guideWidth = Math.min(w * 0.74, guideHeight * 0.42);
-    const topY = centerY - guideHeight / 2;
-    const bottomY = centerY + guideHeight / 2;
-    const topHalf = guideWidth * 0.34;
-    const bottomHalf = guideWidth * 0.52;
-    const railGap = guideWidth * 0.12;
-    const levels = 8;
-    const leftTop = centerX - topHalf;
-    const rightTop = centerX + topHalf;
-    const leftBottom = centerX - bottomHalf;
-    const rightBottom = centerX + bottomHalf;
+    const guideHeight = h * 0.86;
+    const guideWidth = Math.min(w * 0.68, guideHeight * 0.38) * state.guide.scale;
+    const topY = -guideHeight / 2;
+    const bottomY = guideHeight / 2;
+    const topHalf = guideWidth * 0.28;
+    const bottomHalf = guideWidth * 0.53;
+    const levels = 9;
     const points = [];
 
     for (let i = 0; i <= levels; i += 1) {
       const t = i / levels;
       const y = lerp(topY, bottomY, t);
-      const left = lerp(leftTop, leftBottom, t);
-      const right = lerp(rightTop, rightBottom, t);
+      const curve = Math.sin((t - 0.15) * Math.PI) * guideWidth * 0.045;
+      const left = -lerp(topHalf, bottomHalf, t) - curve;
+      const right = lerp(topHalf, bottomHalf, t) + curve * 0.45;
+      const innerAmount = lerp(0.64, 0.48, t);
       points.push({
         y,
         left,
-        center: centerX,
+        center: 0,
         right,
-        innerLeft: lerp(left + railGap, centerX - railGap * 0.45, t),
-        innerRight: lerp(right - railGap, centerX + railGap * 0.45, t)
+        innerLeft: left * innerAmount,
+        innerRight: right * innerAmount
       });
     }
 
     ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate((state.guide.rotation * Math.PI) / 180);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.globalAlpha = opacity;
 
-    ctx.strokeStyle = '#19bdf2';
-    ctx.lineWidth = Math.max(1, lineWidth * 1.15);
+    ctx.strokeStyle = '#12bdea';
+    ctx.lineWidth = Math.max(1.2, lineWidth * 0.95);
     ctx.setLineDash([]);
-    drawPathThrough(ctx, points.map((point) => [point.left, point.y]));
-    drawPathThrough(ctx, points.map((point) => [point.innerLeft, point.y]));
-    drawPathThrough(ctx, points.map((point) => [point.innerRight, point.y]));
-    drawPathThrough(ctx, points.map((point) => [point.right, point.y]));
+    drawSmoothPath(ctx, points.map((point) => [point.left, point.y]));
+    drawSmoothPath(ctx, points.map((point) => [point.innerLeft, point.y]));
+    drawSmoothPath(ctx, points.map((point) => [point.innerRight, point.y]));
+    drawSmoothPath(ctx, points.map((point) => [point.right, point.y]));
+    drawSmoothPath(ctx, points.map((point) => [point.left - guideWidth * 0.08, point.y]));
+    drawSmoothPath(ctx, points.map((point) => [point.right + guideWidth * 0.08, point.y]));
 
-    ctx.strokeStyle = '#f0342f';
-    ctx.fillStyle = '#f0342f';
-    ctx.lineWidth = Math.max(1, lineWidth * 0.85);
+    ctx.strokeStyle = '#e0201b';
+    ctx.fillStyle = '#e0201b';
+    ctx.lineWidth = Math.max(0.9, lineWidth * 0.68);
 
     for (let i = 0; i < points.length - 1; i += 1) {
       const current = points[i];
       const next = points[i + 1];
-      drawLine(ctx, current.left, current.y, next.right, next.y);
-      drawLine(ctx, current.right, current.y, next.left, next.y);
-      drawLine(ctx, current.center, current.y, next.left, next.y);
+      drawLine(ctx, current.left, current.y, next.center, next.y);
       drawLine(ctx, current.center, current.y, next.right, next.y);
+      drawLine(ctx, current.right, current.y, next.center, next.y);
+      drawLine(ctx, current.center, current.y, next.left, next.y);
     }
 
-    ctx.globalAlpha = opacity * 0.88;
+    ctx.globalAlpha = opacity * 0.78;
     points.forEach((point, index) => {
-      drawLine(ctx, point.left, point.y, point.right, point.y);
-      if (index % 2 === 0) drawLine(ctx, point.center, point.y, point.right, point.y);
+      const shortInset = guideWidth * (index < 3 ? 0.1 : 0.04);
+      drawLine(ctx, point.left + shortInset, point.y, point.right - shortInset, point.y);
     });
 
     ctx.globalAlpha = Math.min(1, opacity + 0.12);
@@ -505,6 +518,7 @@
       drawDot(ctx, point.center, point.y, lineWidth);
       drawDot(ctx, point.right, point.y, lineWidth);
     });
+    drawDot(ctx, 0, topY - guideHeight * 0.035, lineWidth * 1.35);
 
     ctx.restore();
   }
@@ -527,6 +541,21 @@
     ctx.beginPath();
     ctx.moveTo(points[0][0], points[0][1]);
     points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.stroke();
+  }
+
+  function drawSmoothPath(ctx, points) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+
+    for (let i = 1; i < points.length - 1; i += 1) {
+      const [x, y] = points[i];
+      const [nextX, nextY] = points[i + 1];
+      ctx.quadraticCurveTo(x, y, (x + nextX) / 2, (y + nextY) / 2);
+    }
+
+    const last = points[points.length - 1];
+    ctx.lineTo(last[0], last[1]);
     ctx.stroke();
   }
 

@@ -104,6 +104,16 @@
 
           <section class="control-section">
             <h2>Posici&oacute;n</h2>
+            <div class="control-row">
+              <label for="guideRotation">Rotar</label>
+              <input type="range" id="guideRotation" min="-35" max="35" value="0">
+              <output id="guideRotationValue" for="guideRotation">0&deg;</output>
+            </div>
+            <div class="control-row">
+              <label for="guideScale">Ancho</label>
+              <input type="range" id="guideScale" min="70" max="135" value="100">
+              <output id="guideScaleValue" for="guideScale">100%</output>
+            </div>
             <button id="moveGuideBtn" class="secondary-btn-full" type="button" aria-pressed="false">Mover gu&iacute;as</button>
             <button id="resetGuidesBtn" class="secondary-btn-full" type="button">Centrar gu&iacute;as</button>
           </section>
