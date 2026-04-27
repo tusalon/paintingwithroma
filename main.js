@@ -524,34 +524,31 @@
     const lineWidth = Number($('lineWidth').value);
     const centerX = w / 2 + state.guide.offsetX;
     const centerY = h / 2 + state.guide.offsetY;
-    const baseHeight = Math.min(h, w / NAIL_RATIO);
-    const guideHeight = baseHeight * state.guide.scale;
-    const guideWidth = guideHeight * NAIL_RATIO;
-    const insetX = guideWidth * 0.045;
-    const insetY = guideHeight * 0.04;
-    const topY = -guideHeight / 2 + insetY;
-    const bottomY = guideHeight / 2 - insetY;
-    const leftX = -guideWidth / 2 + insetX;
-    const rightX = guideWidth / 2 - insetX;
-    const innerHeight = bottomY - topY;
-    const innerWidth = rightX - leftX;
-    const frame = {
-      topLeft: [leftX, topY],
-      topRight: [rightX, topY],
-      bottomRight: [rightX, bottomY],
-      bottomLeft: [leftX, bottomY]
-    };
-    const centers = [
-      { x: 0, y: topY + innerHeight * 0.18, r: innerWidth * 0.19 },
-      { x: 0, y: topY + innerHeight * 0.51, r: innerWidth * 0.22 },
-      { x: 0, y: topY + innerHeight * 0.82, r: innerWidth * 0.19 }
-    ];
-    const sideLeftTop = [leftX, topY + innerHeight * 0.25];
-    const sideRightTop = [rightX, topY + innerHeight * 0.25];
-    const sideLeftMid = [leftX, topY + innerHeight * 0.50];
-    const sideRightMid = [rightX, topY + innerHeight * 0.50];
-    const sideLeftBottom = [leftX, topY + innerHeight * 0.76];
-    const sideRightBottom = [rightX, topY + innerHeight * 0.76];
+    const frameHeight = Math.min(h, w / NAIL_RATIO) * state.guide.scale;
+    const frameWidth = frameHeight * NAIL_RATIO;
+    const left = -frameWidth / 2;
+    const right = frameWidth / 2;
+    const top = -frameHeight / 2;
+    const bottom = frameHeight / 2;
+    const width = right - left;
+    const height = bottom - top;
+    const point = (x, y) => [left + width * x, top + height * y];
+    const node = (x, y, r) => ({ x: point(x, y)[0], y: point(x, y)[1], r: width * r });
+    const tl = point(0, 0);
+    const tm = point(0.5, 0);
+    const tr = point(1, 0);
+    const br = point(1, 1);
+    const bm = point(0.5, 1);
+    const bl = point(0, 1);
+    const leftUpper = point(0, 0.27);
+    const rightUpper = point(1, 0.27);
+    const leftMiddle = point(0, 0.52);
+    const rightMiddle = point(1, 0.52);
+    const leftLower = point(0, 0.76);
+    const rightLower = point(1, 0.76);
+    const topNode = node(0.5, 0.19, 0.19);
+    const midNode = node(0.5, 0.52, 0.24);
+    const bottomNode = node(0.5, 0.83, 0.19);
 
     ctx.save();
     ctx.translate(centerX, centerY);
@@ -563,14 +560,14 @@
     ctx.strokeStyle = '#ff1495';
     ctx.lineWidth = Math.max(1.4, lineWidth * 1.05);
     ctx.setLineDash([]);
-    drawPolyline(ctx, [frame.topLeft, frame.topRight, frame.bottomRight, frame.bottomLeft, frame.topLeft]);
+    drawPolyline(ctx, [tl, tr, br, bl, tl]);
 
     ctx.save();
     ctx.beginPath();
-    ctx.moveTo(frame.topLeft[0], frame.topLeft[1]);
-    ctx.lineTo(frame.topRight[0], frame.topRight[1]);
-    ctx.lineTo(frame.bottomRight[0], frame.bottomRight[1]);
-    ctx.lineTo(frame.bottomLeft[0], frame.bottomLeft[1]);
+    ctx.moveTo(tl[0], tl[1]);
+    ctx.lineTo(tr[0], tr[1]);
+    ctx.lineTo(br[0], br[1]);
+    ctx.lineTo(bl[0], bl[1]);
     ctx.closePath();
     ctx.clip();
 
@@ -578,88 +575,47 @@
     ctx.fillStyle = '#0b68ff';
     ctx.lineWidth = Math.max(1.1, lineWidth * 0.85);
 
-    drawLine(ctx, 0, topY, 0, bottomY);
-    drawLine(ctx, leftX, centers[1].y, rightX, centers[1].y);
+    drawLine(ctx, tm[0], tm[1], bm[0], bm[1]);
+    drawLine(ctx, leftMiddle[0], leftMiddle[1], rightMiddle[0], rightMiddle[1]);
+    drawLine(ctx, tl[0], tl[1], br[0], br[1]);
+    drawLine(ctx, tr[0], tr[1], bl[0], bl[1]);
+    drawLine(ctx, point(0.25, 0)[0], point(0.25, 0)[1], point(0.75, 1)[0], point(0.75, 1)[1]);
+    drawLine(ctx, point(0.75, 0)[0], point(0.75, 0)[1], point(0.25, 1)[0], point(0.25, 1)[1]);
+    drawLine(ctx, tl[0], tl[1], midNode.x, midNode.y);
+    drawLine(ctx, tr[0], tr[1], midNode.x, midNode.y);
+    drawLine(ctx, bl[0], bl[1], midNode.x, midNode.y);
+    drawLine(ctx, br[0], br[1], midNode.x, midNode.y);
+    drawLine(ctx, leftUpper[0], leftUpper[1], midNode.x, midNode.y);
+    drawLine(ctx, rightUpper[0], rightUpper[1], midNode.x, midNode.y);
+    drawLine(ctx, leftLower[0], leftLower[1], midNode.x, midNode.y);
+    drawLine(ctx, rightLower[0], rightLower[1], midNode.x, midNode.y);
+    drawLine(ctx, leftMiddle[0], leftMiddle[1], topNode.x, topNode.y);
+    drawLine(ctx, rightMiddle[0], rightMiddle[1], topNode.x, topNode.y);
+    drawLine(ctx, leftMiddle[0], leftMiddle[1], bottomNode.x, bottomNode.y);
+    drawLine(ctx, rightMiddle[0], rightMiddle[1], bottomNode.x, bottomNode.y);
+    drawPathThrough(ctx, [[topNode.x, topNode.y], [midNode.x, midNode.y], [bottomNode.x, bottomNode.y]]);
 
-    centers.forEach((center) => {
-      drawCircle(ctx, center.x, center.y, center.r);
-      drawCircle(ctx, center.x, center.y, center.r * 0.52);
-      drawLine(ctx, center.x - center.r, center.y, center.x + center.r, center.y);
-      drawLine(ctx, center.x, center.y - center.r, center.x, center.y + center.r);
+    [topNode, midNode, bottomNode].forEach((currentNode) => {
+      drawCircle(ctx, currentNode.x, currentNode.y, currentNode.r);
+      drawCircle(ctx, currentNode.x, currentNode.y, currentNode.r * 0.52);
+      drawLine(ctx, currentNode.x - currentNode.r, currentNode.y, currentNode.x + currentNode.r, currentNode.y);
+      drawLine(ctx, currentNode.x, currentNode.y - currentNode.r, currentNode.x, currentNode.y + currentNode.r);
     });
 
-    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], centers[0].x, centers[0].y);
-    drawLine(ctx, frame.topRight[0], frame.topRight[1], centers[0].x, centers[0].y);
-    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], centers[1].x, centers[1].y);
-    drawLine(ctx, frame.topRight[0], frame.topRight[1], centers[1].x, centers[1].y);
+    drawSmoothPath(ctx, [tl, point(0.28, 0.22), point(0.05, 0.52), point(0.28, 0.78), bl]);
+    drawSmoothPath(ctx, [tr, point(0.72, 0.22), point(0.95, 0.52), point(0.72, 0.78), br]);
 
-    drawLine(ctx, frame.bottomLeft[0], frame.bottomLeft[1], centers[2].x, centers[2].y);
-    drawLine(ctx, frame.bottomRight[0], frame.bottomRight[1], centers[2].x, centers[2].y);
-    drawLine(ctx, frame.bottomLeft[0], frame.bottomLeft[1], centers[1].x, centers[1].y);
-    drawLine(ctx, frame.bottomRight[0], frame.bottomRight[1], centers[1].x, centers[1].y);
+    drawArc(ctx, topNode.x, topNode.y, topNode.r * 1.55, Math.PI * 0.95, Math.PI * 2.05);
+    drawArc(ctx, midNode.x, midNode.y, midNode.r * 1.52, Math.PI * 1.02, Math.PI * 1.98);
+    drawArc(ctx, bottomNode.x, bottomNode.y, bottomNode.r * 1.55, Math.PI * 0.95, Math.PI * 2.05);
 
-    drawLine(ctx, sideLeftTop[0], sideLeftTop[1], centers[1].x, centers[1].y);
-    drawLine(ctx, sideRightTop[0], sideRightTop[1], centers[1].x, centers[1].y);
-    drawLine(ctx, sideLeftMid[0], sideLeftMid[1], centers[0].x, centers[0].y);
-    drawLine(ctx, sideRightMid[0], sideRightMid[1], centers[0].x, centers[0].y);
-    drawLine(ctx, sideLeftMid[0], sideLeftMid[1], centers[2].x, centers[2].y);
-    drawLine(ctx, sideRightMid[0], sideRightMid[1], centers[2].x, centers[2].y);
-    drawLine(ctx, sideLeftBottom[0], sideLeftBottom[1], centers[1].x, centers[1].y);
-    drawLine(ctx, sideRightBottom[0], sideRightBottom[1], centers[1].x, centers[1].y);
-
-    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], frame.bottomRight[0], frame.bottomRight[1]);
-    drawLine(ctx, frame.topRight[0], frame.topRight[1], frame.bottomLeft[0], frame.bottomLeft[1]);
-    drawPathThrough(ctx, centers.map((center) => [center.x, center.y]));
-
-    drawSmoothPath(ctx, [
-      frame.topLeft,
-      [leftX + innerWidth * 0.24, topY + innerHeight * 0.24],
-      [leftX + innerWidth * 0.06, topY + innerHeight * 0.52],
-      [leftX + innerWidth * 0.26, topY + innerHeight * 0.78],
-      frame.bottomLeft
-    ]);
-    drawSmoothPath(ctx, [
-      frame.topRight,
-      [rightX - innerWidth * 0.24, topY + innerHeight * 0.24],
-      [rightX - innerWidth * 0.06, topY + innerHeight * 0.52],
-      [rightX - innerWidth * 0.26, topY + innerHeight * 0.78],
-      frame.bottomRight
-    ]);
-
-    drawArc(ctx, centers[0].x, centers[0].y, centers[0].r * 1.56, Math.PI * 0.95, Math.PI * 2.08);
-    drawArc(ctx, centers[1].x, centers[1].y, centers[1].r * 1.72, Math.PI * 1.06, Math.PI * 1.95);
-    drawArc(ctx, centers[2].x, centers[2].y, centers[2].r * 1.55, Math.PI * 0.95, Math.PI * 2.05);
-
-    drawRadialFan(ctx, centers[0], [
-      frame.topLeft,
-      [leftX + innerWidth * 0.24, topY],
-      [rightX - innerWidth * 0.24, topY],
-      frame.topRight,
-      sideLeftTop,
-      sideRightTop
-    ]);
-    drawRadialFan(ctx, centers[1], [
-      sideLeftTop,
-      sideRightTop,
-      sideLeftMid,
-      sideRightMid,
-      sideLeftBottom,
-      sideRightBottom,
-      [leftX + innerWidth * 0.22, bottomY],
-      [rightX - innerWidth * 0.22, bottomY]
-    ]);
-    drawRadialFan(ctx, centers[2], [
-      frame.bottomLeft,
-      [leftX + innerWidth * 0.28, bottomY],
-      [rightX - innerWidth * 0.28, bottomY],
-      frame.bottomRight,
-      sideLeftBottom,
-      sideRightBottom
-    ]);
+    drawRadialFan(ctx, topNode, [tl, point(0.25, 0), point(0.75, 0), tr, leftUpper, rightUpper]);
+    drawRadialFan(ctx, midNode, [leftUpper, rightUpper, leftMiddle, rightMiddle, leftLower, rightLower, point(0.25, 1), point(0.75, 1)]);
+    drawRadialFan(ctx, bottomNode, [bl, point(0.25, 1), point(0.75, 1), br, leftLower, rightLower]);
 
     ctx.globalAlpha = Math.min(1, opacity + 0.16);
-    centers.forEach((center) => drawDot(ctx, center.x, center.y, lineWidth * 1.45));
-    [frame.topLeft, frame.topRight, frame.bottomRight, frame.bottomLeft].forEach((anchor) => {
+    [topNode, midNode, bottomNode].forEach((currentNode) => drawDot(ctx, currentNode.x, currentNode.y, lineWidth * 1.45));
+    [tl, tr, br, bl].forEach((anchor) => {
       drawDot(ctx, anchor[0], anchor[1], lineWidth * 0.8);
     });
 
