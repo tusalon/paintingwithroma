@@ -450,31 +450,33 @@
     const lineWidth = Number($('lineWidth').value);
     const centerX = w / 2 + state.guide.offsetX;
     const centerY = h / 2 + state.guide.offsetY;
-    const guideHeight = h * 0.86;
-    const guideWidth = Math.min(w * 0.68, guideHeight * 0.38) * state.guide.scale;
+    const guideHeight = h * 0.88 * state.guide.scale;
+    const guideWidth = Math.min(w * 0.86, h * 0.5) * state.guide.scale;
     const topY = -guideHeight / 2;
     const bottomY = guideHeight / 2;
-    const topHalf = guideWidth * 0.28;
-    const bottomHalf = guideWidth * 0.53;
-    const levels = 9;
-    const points = [];
-
-    for (let i = 0; i <= levels; i += 1) {
-      const t = i / levels;
-      const y = lerp(topY, bottomY, t);
-      const curve = Math.sin((t - 0.15) * Math.PI) * guideWidth * 0.045;
-      const left = -lerp(topHalf, bottomHalf, t) - curve;
-      const right = lerp(topHalf, bottomHalf, t) + curve * 0.45;
-      const innerAmount = lerp(0.64, 0.48, t);
-      points.push({
-        y,
-        left,
-        center: 0,
-        right,
-        innerLeft: left * innerAmount,
-        innerRight: right * innerAmount
-      });
-    }
+    const frame = {
+      topLeft: [-guideWidth * 0.44, topY],
+      topRight: [guideWidth * 0.42, topY + guideHeight * 0.03],
+      bottomRight: [guideWidth * 0.5, bottomY],
+      bottomLeft: [-guideWidth * 0.36, bottomY - guideHeight * 0.02]
+    };
+    const stars = [
+      { x: -guideWidth * 0.32, y: -guideHeight * 0.36, r: guideWidth * 0.38 },
+      { x: -guideWidth * 0.02, y: -guideHeight * 0.06, r: guideWidth * 0.34 },
+      { x: guideWidth * 0.34, y: guideHeight * 0.28, r: guideWidth * 0.35 }
+    ];
+    const anchors = [
+      frame.topLeft,
+      [0, topY + guideHeight * 0.02],
+      frame.topRight,
+      [guideWidth * 0.28, -guideHeight * 0.18],
+      [-guideWidth * 0.42, -guideHeight * 0.08],
+      [guideWidth * 0.46, guideHeight * 0.05],
+      [-guideWidth * 0.3, guideHeight * 0.2],
+      [0, guideHeight * 0.43],
+      frame.bottomRight,
+      frame.bottomLeft
+    ];
 
     ctx.save();
     ctx.translate(centerX, centerY);
@@ -483,42 +485,55 @@
     ctx.lineJoin = 'round';
     ctx.globalAlpha = opacity;
 
-    ctx.strokeStyle = '#12bdea';
-    ctx.lineWidth = Math.max(1.2, lineWidth * 0.95);
+    ctx.strokeStyle = '#ff1495';
+    ctx.lineWidth = Math.max(1.4, lineWidth * 1.05);
     ctx.setLineDash([]);
-    drawSmoothPath(ctx, points.map((point) => [point.left, point.y]));
-    drawSmoothPath(ctx, points.map((point) => [point.innerLeft, point.y]));
-    drawSmoothPath(ctx, points.map((point) => [point.innerRight, point.y]));
-    drawSmoothPath(ctx, points.map((point) => [point.right, point.y]));
-    drawSmoothPath(ctx, points.map((point) => [point.left - guideWidth * 0.08, point.y]));
-    drawSmoothPath(ctx, points.map((point) => [point.right + guideWidth * 0.08, point.y]));
+    drawPolyline(ctx, [frame.topLeft, frame.topRight, frame.bottomRight, frame.bottomLeft, frame.topLeft]);
 
-    ctx.strokeStyle = '#e0201b';
-    ctx.fillStyle = '#e0201b';
-    ctx.lineWidth = Math.max(0.9, lineWidth * 0.68);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(frame.topLeft[0], frame.topLeft[1]);
+    ctx.lineTo(frame.topRight[0], frame.topRight[1]);
+    ctx.lineTo(frame.bottomRight[0], frame.bottomRight[1]);
+    ctx.lineTo(frame.bottomLeft[0], frame.bottomLeft[1]);
+    ctx.closePath();
+    ctx.clip();
 
-    for (let i = 0; i < points.length - 1; i += 1) {
-      const current = points[i];
-      const next = points[i + 1];
-      drawLine(ctx, current.left, current.y, next.center, next.y);
-      drawLine(ctx, current.center, current.y, next.right, next.y);
-      drawLine(ctx, current.right, current.y, next.center, next.y);
-      drawLine(ctx, current.center, current.y, next.left, next.y);
-    }
+    ctx.strokeStyle = '#0b68ff';
+    ctx.fillStyle = '#0b68ff';
+    ctx.lineWidth = Math.max(1.1, lineWidth * 0.85);
 
-    ctx.globalAlpha = opacity * 0.78;
-    points.forEach((point, index) => {
-      const shortInset = guideWidth * (index < 3 ? 0.1 : 0.04);
-      drawLine(ctx, point.left + shortInset, point.y, point.right - shortInset, point.y);
+    stars.forEach((star) => {
+      drawCircle(ctx, star.x, star.y, star.r);
+      drawCircle(ctx, star.x, star.y, star.r * 0.62);
     });
 
-    ctx.globalAlpha = Math.min(1, opacity + 0.12);
-    points.forEach((point) => {
-      drawDot(ctx, point.left, point.y, lineWidth);
-      drawDot(ctx, point.center, point.y, lineWidth);
-      drawDot(ctx, point.right, point.y, lineWidth);
+    drawArc(ctx, stars[0].x, stars[0].y, stars[0].r * 1.55, -0.4, 1.15);
+    drawArc(ctx, stars[1].x, stars[1].y, stars[1].r * 1.38, -2.45, 0.7);
+    drawArc(ctx, stars[2].x, stars[2].y, stars[2].r * 1.45, -2.8, 0.25);
+
+    stars.forEach((star, starIndex) => {
+      anchors.forEach((anchor, anchorIndex) => {
+        if ((anchorIndex + starIndex) % 2 === 0 || anchorIndex < 3) {
+          drawLine(ctx, star.x, star.y, anchor[0], anchor[1]);
+        }
+      });
     });
-    drawDot(ctx, 0, topY - guideHeight * 0.035, lineWidth * 1.35);
+
+    drawLine(ctx, frame.topLeft[0], frame.topLeft[1], frame.bottomRight[0], frame.bottomRight[1]);
+    drawLine(ctx, frame.topRight[0], frame.topRight[1], frame.bottomLeft[0], frame.bottomLeft[1]);
+    drawLine(ctx, stars[0].x, stars[0].y, stars[2].x, stars[2].y);
+    drawLine(ctx, -guideWidth * 0.48, -guideHeight * 0.02, guideWidth * 0.48, guideHeight * 0.04);
+    drawLine(ctx, -guideWidth * 0.18, topY, guideWidth * 0.12, bottomY);
+    drawLine(ctx, guideWidth * 0.36, topY, guideWidth * 0.2, bottomY);
+
+    ctx.globalAlpha = Math.min(1, opacity + 0.16);
+    stars.forEach((star) => drawDot(ctx, star.x, star.y, lineWidth * 1.45));
+    anchors.forEach((anchor, index) => {
+      if (index % 2 === 0) drawDot(ctx, anchor[0], anchor[1], lineWidth * 0.8);
+    });
+
+    ctx.restore();
 
     ctx.restore();
   }
@@ -534,6 +549,18 @@
     ctx.beginPath();
     ctx.moveTo(points[0][0], points[0][1]);
     points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.stroke();
+  }
+
+  function drawCircle(ctx, x, y, radius) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  function drawArc(ctx, x, y, radius, startAngle, endAngle) {
+    ctx.beginPath();
+    ctx.arc(x, y, radius, startAngle, endAngle);
     ctx.stroke();
   }
 
