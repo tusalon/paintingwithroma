@@ -3,108 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#1a1a2e">
+  <meta name="theme-color" content="#111016">
+  <meta name="description" content="Gu&iacute;as profesionales para dise&ntilde;o de u&ntilde;as Ballerina en proporci&oacute;n 9:16.">
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="styles.css">
   <title>Painting With Roma</title>
 </head>
 <body>
-  <div class="app-container">
-    
-    <!-- BIENVENIDA -->
-    <div id="welcomeScreen" class="welcome-screen">
-      <div class="logo-container">
-        <h1>Painting With Roma</h1>
-        <p>Guías para uñas Ballerina 9:16</p>
+  <main class="app-container" aria-label="Painting With Roma">
+    <section id="welcomeScreen" class="welcome-screen" aria-labelledby="appTitle">
+      <div class="brand-block">
+        <p class="eyebrow">Gu&iacute;as profesionales 9:16</p>
+        <h1 id="appTitle">Painting With Roma</h1>
+        <p>Prepara referencias Ballerina limpias, centradas y listas para compartir.</p>
       </div>
-      <button id="uploadBtn" class="main-upload-btn">
-        <span>📷</span> Seleccionar Imagen
+      <button id="uploadBtn" class="main-upload-btn" type="button">
+        <span aria-hidden="true">+</span>
+        <span>Seleccionar imagen</span>
       </button>
-      <input type="file" id="fileInput" accept="image/*" style="display: none;">
-    </div>
+      <input type="file" id="fileInput" accept="image/*" hidden>
+    </section>
 
-    <!-- MODO RECORTE -->
-    <div class="crop-mode" id="cropMode" style="display: none;">
-      <div class="crop-header">
-        <button id="cancelCrop" class="text-btn">Cancelar</button>
-        <span>Encuadra (9:16)</span>
-        <button id="confirmCrop" class="text-btn primary">Fijar ✓</button>
-      </div>
+    <section class="crop-mode" id="cropMode" aria-label="Recortar imagen" hidden>
+      <header class="crop-header">
+        <button id="cancelCrop" class="text-btn" type="button">Cancelar</button>
+        <span>Encuadre 9:16</span>
+        <button id="confirmCrop" class="text-btn primary" type="button">Fijar</button>
+      </header>
       <div class="crop-workspace">
         <div class="crop-wrapper" id="cropWrapper">
-          <img id="cropImage" draggable="false">
-          <div class="crop-frame" id="cropFrame">
-            <div class="handle tl"></div>
-            <div class="handle tr"></div>
-            <div class="handle bl"></div>
-            <div class="handle br"></div>
+          <img id="cropImage" alt="Imagen seleccionada para recortar" draggable="false">
+          <div class="crop-frame" id="cropFrame" role="group" aria-label="&Aacute;rea de recorte">
+            <span class="handle tl" data-handle="tl" aria-hidden="true"></span>
+            <span class="handle tr" data-handle="tr" aria-hidden="true"></span>
+            <span class="handle bl" data-handle="bl" aria-hidden="true"></span>
+            <span class="handle br" data-handle="br" aria-hidden="true"></span>
           </div>
         </div>
       </div>
-    </div>
+    </section>
 
-    <!-- MODO TRABAJO -->
-    <div class="work-mode" id="workMode" style="display: none;">
-      <div class="work-header">
-        <button id="backToWelcome" class="icon-btn">✕</button>
-        <div class="work-title">💅 Ballerina 9:16</div>
+    <section class="work-mode" id="workMode" aria-label="Editar gu&iacute;as" hidden>
+      <header class="work-header">
+        <button id="backToWelcome" class="icon-btn" type="button" aria-label="Volver al inicio" title="Volver">x</button>
+        <div class="work-title">Ballerina 9:16</div>
         <div class="work-actions">
-          <button id="toggleSettings" class="icon-btn">⚙️</button>
-          <button id="downloadBtn" class="icon-btn highlight">⬇️</button>
+          <button id="toggleSettings" class="icon-btn" type="button" aria-label="Abrir ajustes" title="Ajustes">⚙</button>
+          <button id="downloadBtn" class="icon-btn highlight" type="button" aria-label="Descargar imagen" title="Descargar">↓</button>
         </div>
-      </div>
-      
-      <div class="work-workspace" id="workWorkspace">
+      </header>
+
+      <div class="work-workspace" id="workWorkspace" aria-label="Vista previa de la gu&iacute;a">
         <canvas id="imageCanvas"></canvas>
         <canvas id="guideCanvas"></canvas>
       </div>
 
-      <!-- PANEL DE AJUSTES -->
-      <div class="settings-panel" id="settingsPanel">
+      <aside class="settings-panel" id="settingsPanel" aria-label="Ajustes de gu&iacute;a" aria-hidden="true">
         <div class="panel-header">
-          <span>🎨 Ajustes de Guía</span>
-          <button class="close-btn" id="closeSettings">×</button>
+          <span>Ajustes de gu&iacute;a</span>
+          <button class="close-btn" id="closeSettings" type="button" aria-label="Cerrar ajustes">x</button>
         </div>
         <div class="panel-content">
-          
-          <div class="control-section">
-            <h4>⭕ Círculos</h4>
+          <section class="control-section">
+            <h2>C&iacute;rculos</h2>
             <div class="control-row">
-              <label>Cantidad</label>
+              <label for="circleSlider">Cantidad</label>
               <input type="range" id="circleSlider" min="2" max="5" value="3">
-              <span id="circleCount">3</span>
+              <output id="circleCount" for="circleSlider">3</output>
             </div>
-          </div>
-          
-          <div class="control-section">
-            <h4>🎨 Estilo</h4>
-            <div class="control-row">
-              <label>Color:</label>
+          </section>
+
+          <section class="control-section">
+            <h2>Estilo</h2>
+            <div class="control-row compact">
+              <label for="lineColor">Color</label>
               <input type="color" id="lineColor" value="#00d0ff">
             </div>
             <div class="control-row">
-              <label>Grosor:</label>
+              <label for="lineWidth">Grosor</label>
               <input type="range" id="lineWidth" min="1" max="5" value="2">
-              <span id="lineWidthValue">2</span>
+              <output id="lineWidthValue" for="lineWidth">2</output>
             </div>
             <div class="control-row">
-              <label>Opacidad:</label>
+              <label for="opacity">Opacidad</label>
               <input type="range" id="opacity" min="10" max="100" value="80">
-              <span id="opacityValue">80%</span>
+              <output id="opacityValue" for="opacity">80%</output>
             </div>
-          </div>
-          
-          <div class="control-section">
-            <h4>✋ Posición</h4>
-            <button id="moveGuideBtn" class="secondary-btn-full">✋ Mover Guías</button>
-            <button id="resetGuidesBtn" class="secondary-btn-full">🔄 Centrar Guías</button>
-          </div>
-          
+          </section>
+
+          <section class="control-section">
+            <h2>Posici&oacute;n</h2>
+            <button id="moveGuideBtn" class="secondary-btn-full" type="button" aria-pressed="false">Mover gu&iacute;as</button>
+            <button id="resetGuidesBtn" class="secondary-btn-full" type="button">Centrar gu&iacute;as</button>
+          </section>
         </div>
-      </div>
-    </div>
-  </div>
-  
-  <script src="main.js"></script>
+      </aside>
+    </section>
+  </main>
+
+  <script src="main.js" defer></script>
 </body>
 </html>

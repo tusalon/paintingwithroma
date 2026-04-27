@@ -1,647 +1,503 @@
-document.addEventListener('DOMContentLoaded', () => {
-  // Elementos DOM
-  const welcomeScreen = document.getElementById('welcomeScreen');
-  const cropMode = document.getElementById('cropMode');
-  const workMode = document.getElementById('workMode');
-  const fileInput = document.getElementById('fileInput');
-  const cropImage = document.getElementById('cropImage');
-  const panel = document.getElementById('settingsPanel');
+(() => {
+  'use strict';
 
-  // Variables globales
-  let originalImage = null;
-  let guideOffsetX = 0, guideOffsetY = 0;
-  let isMovingGuide = false;
-  let lastTouchX, lastTouchY;
-  let circleCount = 3;
-  
-  // Variables recorte
-  let cropImageX = 0, cropImageY = 0;
-  let frameX = 0, frameY = 0;
-  let frameWidth = 0, frameHeight = 0;
-  let isDraggingImage = false, isDraggingFrame = false;
-  let isDraggingHandle = false;
-  let activeHandle = null;
-  let dragStartX, dragStartY, frameStartX, frameStartY, imageStartX, imageStartY;
-  let handleOppositeX, handleOppositeY;
-  let workspaceWidth, workspaceHeight;
-  
-  const NAIL_RATIO = 9/16;
+  const NAIL_RATIO = 9 / 16;
   const MIN_FRAME_WIDTH = 80;
+  const $ = (id) => document.getElementById(id);
 
-  // === RAF para drawGuides ===
-  let isDrawing = false;
+  const state = {
+    originalImage: null,
+    croppedCanvas: null,
+    cropEventsReady: false,
+    drawRequested: false,
+    crop: {
+      frameX: 0,
+      frameY: 0,
+      frameWidth: 0,
+      frameHeight: 0,
+      wrapperWidth: 0,
+      wrapperHeight: 0,
+      activeAction: null,
+      activeHandle: null,
+      dragStartX: 0,
+      dragStartY: 0,
+      frameStartX: 0,
+      frameStartY: 0,
+      oppositeX: 0,
+      oppositeY: 0
+    },
+    guide: {
+      offsetX: 0,
+      offsetY: 0,
+      moving: false,
+      dragging: false,
+      lastX: 0,
+      lastY: 0,
+      circleCount: 3
+    }
+  };
 
-  function requestDraw() {
-    if (isDrawing) return;
-    isDrawing = true;
-    
-    requestAnimationFrame(() => {
-      drawGuides();
-      isDrawing = false;
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init() {
+    $('uploadBtn').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', handleFileSelection);
+    $('cancelCrop').addEventListener('click', showWelcome);
+    $('confirmCrop').addEventListener('click', confirmCrop);
+    $('backToWelcome').addEventListener('click', () => {
+      if (window.confirm('\u00bfReiniciar y seleccionar otra imagen?')) window.location.reload();
+    });
+
+    $('toggleSettings').addEventListener('click', () => setSettingsOpen(!$('settingsPanel').classList.contains('open')));
+    $('closeSettings').addEventListener('click', () => setSettingsOpen(false));
+    $('lineColor').addEventListener('input', requestGuideDraw);
+    $('moveGuideBtn').addEventListener('click', toggleMoveMode);
+    $('resetGuidesBtn').addEventListener('click', resetGuides);
+    $('downloadBtn').addEventListener('click', downloadComposite);
+
+    bindRange('circleSlider', 'circleCount', (value) => {
+      state.guide.circleCount = Number(value);
+      requestGuideDraw();
+      return value;
+    });
+    bindRange('lineWidth', 'lineWidthValue', (value) => {
+      requestGuideDraw();
+      return value;
+    });
+    bindRange('opacity', 'opacityValue', (value) => {
+      requestGuideDraw();
+      return `${value}%`;
+    });
+
+    bindGuidePointerEvents();
+    window.addEventListener('resize', debounce(handleResize, 120));
+    registerServiceWorker();
+  }
+
+  function bindRange(inputId, outputId, onValue) {
+    const input = $(inputId);
+    const output = $(outputId);
+    input.addEventListener('input', () => {
+      const displayValue = onValue(input.value);
+      output.value = displayValue;
+      output.textContent = displayValue;
     });
   }
 
-  // Inicialización
-  document.getElementById('uploadBtn').addEventListener('click', () => fileInput.click());
+  function handleFileSelection(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
 
-  fileInput.addEventListener('change', (e) => {
-    if (e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = new Image();
-        img.onload = () => {
-          originalImage = img;
-          cropImage.src = ev.target.result;
-          welcomeScreen.style.display = 'none';
-          cropMode.style.display = 'flex';
-          setTimeout(() => initializeCropMode(), 50);
-        };
-        img.src = ev.target.result;
-      };
-      reader.readAsDataURL(e.target.files[0]);
+    if (!file.type.startsWith('image/')) {
+      window.alert('Selecciona un archivo de imagen v\u00e1lido.');
+      event.target.value = '';
+      return;
     }
-  });
+
+    const reader = new FileReader();
+    reader.onload = () => loadImage(String(reader.result));
+    reader.onerror = () => window.alert('No se pudo leer la imagen. Intenta con otro archivo.');
+    reader.readAsDataURL(file);
+  }
+
+  function loadImage(src) {
+    const image = new Image();
+    image.onload = () => {
+      state.originalImage = image;
+      $('cropImage').src = src;
+      showCropMode();
+      requestAnimationFrame(initializeCropMode);
+    };
+    image.onerror = () => window.alert('No se pudo cargar la imagen. Intenta con otro archivo.');
+    image.src = src;
+  }
+
+  function showWelcome() {
+    $('cropMode').hidden = true;
+    $('workMode').hidden = true;
+    $('welcomeScreen').hidden = false;
+    $('fileInput').value = '';
+  }
+
+  function showCropMode() {
+    $('welcomeScreen').hidden = true;
+    $('workMode').hidden = true;
+    $('cropMode').hidden = false;
+  }
+
+  function showWorkMode() {
+    $('cropMode').hidden = true;
+    $('welcomeScreen').hidden = true;
+    $('workMode').hidden = false;
+  }
 
   function initializeCropMode() {
-    const wrapper = document.getElementById('cropWrapper');
+    if (!state.originalImage) return;
+
+    const wrapper = $('cropWrapper');
     const workspace = document.querySelector('.crop-workspace');
-    workspaceWidth = workspace.clientWidth;
-    workspaceHeight = workspace.clientHeight;
-    
-    const imgRatio = originalImage.width / originalImage.height;
-    let displayWidth, displayHeight;
-    
-    if (workspaceWidth / workspaceHeight > imgRatio) {
-      displayHeight = workspaceHeight * 0.9;
-      displayWidth = displayHeight * imgRatio;
+    const crop = state.crop;
+    const workspaceWidth = workspace.clientWidth;
+    const workspaceHeight = workspace.clientHeight;
+    const imageRatio = state.originalImage.width / state.originalImage.height;
+
+    if (workspaceWidth / workspaceHeight > imageRatio) {
+      crop.wrapperHeight = workspaceHeight * 0.9;
+      crop.wrapperWidth = crop.wrapperHeight * imageRatio;
     } else {
-      displayWidth = workspaceWidth * 0.9;
-      displayHeight = displayWidth / imgRatio;
+      crop.wrapperWidth = workspaceWidth * 0.9;
+      crop.wrapperHeight = crop.wrapperWidth / imageRatio;
     }
-    
-    wrapper.style.width = displayWidth + 'px';
-    wrapper.style.height = displayHeight + 'px';
-    
-    cropImageX = (workspaceWidth - displayWidth) / 2;
-    cropImageY = (workspaceHeight - displayHeight) / 2;
-    wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
-    
-    const frame = document.getElementById('cropFrame');
-    frameWidth = displayWidth * 0.75;
-    frameHeight = frameWidth / NAIL_RATIO;
-    
-    if (frameHeight > displayHeight) {
-      frameHeight = displayHeight * 0.8;
-      frameWidth = frameHeight * NAIL_RATIO;
-    }
-    
-    frameX = (displayWidth - frameWidth) / 2;
-    frameY = (displayHeight - frameHeight) / 2;
-    
-    frame.style.width = frameWidth + 'px';
-    frame.style.height = frameHeight + 'px';
-    frame.style.left = frameX + 'px';
-    frame.style.top = frameY + 'px';
-    
-    setupCropEvents(wrapper, frame);
+
+    wrapper.style.width = `${crop.wrapperWidth}px`;
+    wrapper.style.height = `${crop.wrapperHeight}px`;
+    wrapper.style.transform = `translate(${(workspaceWidth - crop.wrapperWidth) / 2}px, ${(workspaceHeight - crop.wrapperHeight) / 2}px)`;
+
+    crop.frameWidth = Math.min(crop.wrapperWidth * 0.72, crop.wrapperHeight * 0.82 * NAIL_RATIO);
+    crop.frameHeight = crop.frameWidth / NAIL_RATIO;
+    crop.frameX = (crop.wrapperWidth - crop.frameWidth) / 2;
+    crop.frameY = (crop.wrapperHeight - crop.frameHeight) / 2;
+
+    renderCropFrame();
+    bindCropPointerEvents();
   }
 
-  function clampImagePosition() {
-    const wrapper = document.getElementById('cropWrapper');
-    const displayWidth = parseFloat(wrapper.style.width);
-    const displayHeight = parseFloat(wrapper.style.height);
-    
-    const minX = workspaceWidth - frameX - frameWidth;
-    const maxX = -frameX;
-    const minY = workspaceHeight - frameY - frameHeight;
-    const maxY = -frameY;
-    
-    if (maxX >= minX) {
-      cropImageX = Math.max(minX, Math.min(maxX, cropImageX));
+  function bindCropPointerEvents() {
+    if (state.cropEventsReady) return;
+    state.cropEventsReady = true;
+
+    const frame = $('cropFrame');
+    frame.addEventListener('pointerdown', startFrameMove);
+    frame.querySelectorAll('.handle').forEach((handle) => {
+      handle.addEventListener('pointerdown', startHandleResize);
+    });
+
+    window.addEventListener('pointermove', updateCropInteraction, { passive: false });
+    window.addEventListener('pointerup', endCropInteraction);
+    window.addEventListener('pointercancel', endCropInteraction);
+  }
+
+  function startFrameMove(event) {
+    if (event.target.classList.contains('handle')) return;
+    event.preventDefault();
+
+    const crop = state.crop;
+    crop.activeAction = 'move-frame';
+    crop.dragStartX = event.clientX;
+    crop.dragStartY = event.clientY;
+    crop.frameStartX = crop.frameX;
+    crop.frameStartY = crop.frameY;
+    $('cropFrame').setPointerCapture?.(event.pointerId);
+  }
+
+  function startHandleResize(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const crop = state.crop;
+    const right = crop.frameX + crop.frameWidth;
+    const bottom = crop.frameY + crop.frameHeight;
+    crop.activeAction = 'resize-frame';
+    crop.activeHandle = event.currentTarget.dataset.handle;
+    crop.oppositeX = crop.activeHandle.includes('l') ? right : crop.frameX;
+    crop.oppositeY = crop.activeHandle.includes('t') ? bottom : crop.frameY;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function updateCropInteraction(event) {
+    const crop = state.crop;
+    if (!crop.activeAction) return;
+    event.preventDefault();
+
+    if (crop.activeAction === 'move-frame') {
+      crop.frameX = clamp(crop.frameStartX + event.clientX - crop.dragStartX, 0, crop.wrapperWidth - crop.frameWidth);
+      crop.frameY = clamp(crop.frameStartY + event.clientY - crop.dragStartY, 0, crop.wrapperHeight - crop.frameHeight);
     } else {
-      cropImageX = (minX + maxX) / 2;
+      resizeFrameFromPointer(event.clientX, event.clientY);
     }
-    
-    if (maxY >= minY) {
-      cropImageY = Math.max(minY, Math.min(maxY, cropImageY));
-    } else {
-      cropImageY = (minY + maxY) / 2;
-    }
-    
-    wrapper.style.transform = `translate(${cropImageX}px, ${cropImageY}px)`;
+
+    renderCropFrame();
   }
 
-  function updateFrameFromHandle(clientX, clientY) {
-    const wrapper = document.getElementById('cropWrapper');
-    const frame = document.getElementById('cropFrame');
-    const displayWidth = parseFloat(wrapper.style.width);
-    const displayHeight = parseFloat(wrapper.style.height);
-    
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const localX = clientX - wrapperRect.left;
-    const localY = clientY - wrapperRect.top;
-    
-    let newWidth, newHeight, newX, newY;
-    
-    switch (activeHandle) {
-      case 'tl':
-        newWidth = handleOppositeX - localX;
-        newHeight = handleOppositeY - localY;
-        newHeight = newWidth / NAIL_RATIO;
-        if (newHeight > handleOppositeY) {
-          newHeight = handleOppositeY;
-          newWidth = newHeight * NAIL_RATIO;
-        }
-        newX = handleOppositeX - newWidth;
-        newY = handleOppositeY - newHeight;
-        break;
-      case 'tr':
-        newWidth = localX - handleOppositeX;
-        newHeight = handleOppositeY - localY;
-        newHeight = newWidth / NAIL_RATIO;
-        if (newHeight > handleOppositeY) {
-          newHeight = handleOppositeY;
-          newWidth = newHeight * NAIL_RATIO;
-        }
-        newX = handleOppositeX;
-        newY = handleOppositeY - newHeight;
-        break;
-      case 'bl':
-        newWidth = handleOppositeX - localX;
-        newHeight = localY - handleOppositeY;
-        newHeight = newWidth / NAIL_RATIO;
-        if (newHeight > displayHeight - handleOppositeY) {
-          newHeight = displayHeight - handleOppositeY;
-          newWidth = newHeight * NAIL_RATIO;
-        }
-        newX = handleOppositeX - newWidth;
-        newY = handleOppositeY;
-        break;
-      case 'br':
-        newWidth = localX - handleOppositeX;
-        newHeight = localY - handleOppositeY;
-        newHeight = newWidth / NAIL_RATIO;
-        if (newHeight > displayHeight - handleOppositeY) {
-          newHeight = displayHeight - handleOppositeY;
-          newWidth = newHeight * NAIL_RATIO;
-        }
-        newX = handleOppositeX;
-        newY = handleOppositeY;
-        break;
-    }
-    
-    if (newWidth < MIN_FRAME_WIDTH) {
-      newWidth = MIN_FRAME_WIDTH;
-      newHeight = newWidth / NAIL_RATIO;
-      switch (activeHandle) {
-        case 'tl':
-          newX = handleOppositeX - newWidth;
-          newY = handleOppositeY - newHeight;
-          break;
-        case 'tr':
-          newX = handleOppositeX;
-          newY = handleOppositeY - newHeight;
-          break;
-        case 'bl':
-          newX = handleOppositeX - newWidth;
-          newY = handleOppositeY;
-          break;
-        case 'br':
-          newX = handleOppositeX;
-          newY = handleOppositeY;
-          break;
-      }
-    }
-    
-    if (newX < 0) {
-      newWidth = newWidth + newX;
-      newX = 0;
-      newHeight = newWidth / NAIL_RATIO;
-    }
-    if (newY < 0) {
-      newHeight = newHeight + newY;
-      newY = 0;
-      newWidth = newHeight * NAIL_RATIO;
-    }
-    if (newX + newWidth > displayWidth) {
-      newWidth = displayWidth - newX;
-      newHeight = newWidth / NAIL_RATIO;
-    }
-    if (newY + newHeight > displayHeight) {
-      newHeight = displayHeight - newY;
-      newWidth = newHeight * NAIL_RATIO;
-    }
-    
-    frameWidth = newWidth;
-    frameHeight = newHeight;
-    frameX = newX;
-    frameY = newY;
-    
-    frame.style.width = frameWidth + 'px';
-    frame.style.height = frameHeight + 'px';
-    frame.style.left = frameX + 'px';
-    frame.style.top = frameY + 'px';
+  function resizeFrameFromPointer(clientX, clientY) {
+    const crop = state.crop;
+    const rect = $('cropWrapper').getBoundingClientRect();
+    const localX = clamp(clientX - rect.left, 0, crop.wrapperWidth);
+    const localY = clamp(clientY - rect.top, 0, crop.wrapperHeight);
+    const maxWidth = crop.activeHandle.includes('l') ? crop.oppositeX : crop.wrapperWidth - crop.oppositeX;
+    const maxHeight = crop.activeHandle.includes('t') ? crop.oppositeY : crop.wrapperHeight - crop.oppositeY;
+    const pointerWidth = Math.abs(localX - crop.oppositeX);
+    const pointerHeight = Math.abs(localY - crop.oppositeY) * NAIL_RATIO;
+    const width = clamp(Math.max(pointerWidth, pointerHeight), MIN_FRAME_WIDTH, Math.min(maxWidth, maxHeight * NAIL_RATIO));
+    const height = width / NAIL_RATIO;
+
+    crop.frameX = crop.activeHandle.includes('l') ? crop.oppositeX - width : crop.oppositeX;
+    crop.frameY = crop.activeHandle.includes('t') ? crop.oppositeY - height : crop.oppositeY;
+    crop.frameWidth = width;
+    crop.frameHeight = height;
   }
 
-  function setupCropEvents(wrapper, frame) {
-    const handles = frame.querySelectorAll('.handle');
-    
-    handles.forEach(handle => {
-      handle.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        isDraggingHandle = true;
-        activeHandle = handle.classList[1];
-        const touch = e.touches[0];
-        dragStartX = touch.clientX;
-        dragStartY = touch.clientY;
-        
-        const frameLeft = frameX;
-        const frameTop = frameY;
-        switch (activeHandle) {
-          case 'tl':
-            handleOppositeX = frameLeft + frameWidth;
-            handleOppositeY = frameTop + frameHeight;
-            break;
-          case 'tr':
-            handleOppositeX = frameLeft;
-            handleOppositeY = frameTop + frameHeight;
-            break;
-          case 'bl':
-            handleOppositeX = frameLeft + frameWidth;
-            handleOppositeY = frameTop;
-            break;
-          case 'br':
-            handleOppositeX = frameLeft;
-            handleOppositeY = frameTop;
-            break;
-        }
-      });
-    });
-    
-    document.addEventListener('touchmove', (e) => {
-      if (!isDraggingHandle || !activeHandle) return;
-      e.preventDefault();
-      updateFrameFromHandle(e.touches[0].clientX, e.touches[0].clientY);
-      clampImagePosition();
-    }, { passive: false });
-    
-    document.addEventListener('touchend', () => {
-      if (isDraggingHandle) {
-        isDraggingHandle = false;
-        activeHandle = null;
-      }
-    });
-
-    frame.addEventListener('touchstart', (e) => {
-      if (isDraggingHandle) return;
-      e.stopPropagation();
-      const touch = e.touches[0];
-      isDraggingFrame = true;
-      dragStartX = touch.clientX;
-      dragStartY = touch.clientY;
-      frameStartX = frameX;
-      frameStartY = frameY;
-    });
-    
-    frame.addEventListener('touchmove', (e) => {
-      if (!isDraggingFrame || isDraggingHandle) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      const wrapperDisplayWidth = parseFloat(wrapper.style.width);
-      const wrapperDisplayHeight = parseFloat(wrapper.style.height);
-      let newX = frameStartX + touch.clientX - dragStartX;
-      let newY = frameStartY + touch.clientY - dragStartY;
-      newX = Math.max(0, Math.min(newX, wrapperDisplayWidth - frameWidth));
-      newY = Math.max(0, Math.min(newY, wrapperDisplayHeight - frameHeight));
-      frameX = newX; frameY = newY;
-      frame.style.left = newX + 'px';
-      frame.style.top = newY + 'px';
-    });
-    
-    frame.addEventListener('touchend', () => {
-      isDraggingFrame = false;
-    });
-
-    wrapper.addEventListener('touchstart', (e) => {
-      if (isDraggingHandle) return;
-      if (e.target === frame || frame.contains(e.target)) return;
-      const touch = e.touches[0];
-      isDraggingImage = true;
-      dragStartX = touch.clientX;
-      dragStartY = touch.clientY;
-      imageStartX = cropImageX;
-      imageStartY = cropImageY;
-    });
-    
-    wrapper.addEventListener('touchmove', (e) => {
-      if (!isDraggingImage || isDraggingHandle) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      cropImageX = imageStartX + touch.clientX - dragStartX;
-      cropImageY = imageStartY + touch.clientY - dragStartY;
-      clampImagePosition();
-    });
-    
-    wrapper.addEventListener('touchend', () => {
-      isDraggingImage = false;
-    });
-    
-    const workspace = document.querySelector('.crop-workspace');
-    workspace.addEventListener('touchstart', (e) => {
-      if (isDraggingHandle) return;
-      if (e.target === wrapper || wrapper.contains(e.target)) return;
-      if (e.target === frame || frame.contains(e.target)) return;
-      const touch = e.touches[0];
-      isDraggingImage = true;
-      dragStartX = touch.clientX;
-      dragStartY = touch.clientY;
-      imageStartX = cropImageX;
-      imageStartY = cropImageY;
-    });
-    
-    workspace.addEventListener('touchmove', (e) => {
-      if (!isDraggingImage || isDraggingHandle) return;
-      e.preventDefault();
-      const touch = e.touches[0];
-      cropImageX = imageStartX + touch.clientX - dragStartX;
-      cropImageY = imageStartY + touch.clientY - dragStartY;
-      clampImagePosition();
-    });
-    
-    workspace.addEventListener('touchend', () => {
-      isDraggingImage = false;
-    });
+  function endCropInteraction() {
+    state.crop.activeAction = null;
+    state.crop.activeHandle = null;
   }
 
-  document.getElementById('cancelCrop').addEventListener('click', () => {
-    cropMode.style.display = 'none';
-    welcomeScreen.style.display = 'flex';
-  });
+  function renderCropFrame() {
+    const frame = $('cropFrame');
+    const crop = state.crop;
+    frame.style.left = `${crop.frameX}px`;
+    frame.style.top = `${crop.frameY}px`;
+    frame.style.width = `${crop.frameWidth}px`;
+    frame.style.height = `${crop.frameHeight}px`;
+  }
 
-  document.getElementById('confirmCrop').addEventListener('click', () => {
-    const wrapper = document.getElementById('cropWrapper');
-    const displayWidth = parseFloat(wrapper.style.width);
-    const scaleRatio = originalImage.width / displayWidth;
-    
+  function confirmCrop() {
+    if (!state.originalImage) return;
+
+    const crop = state.crop;
+    const scaleRatio = state.originalImage.width / crop.wrapperWidth;
     const canvas = document.createElement('canvas');
-    canvas.width = frameWidth * scaleRatio;
-    canvas.height = frameHeight * scaleRatio;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(originalImage, 
-      frameX * scaleRatio, frameY * scaleRatio, 
-      canvas.width, canvas.height, 
-      0, 0, canvas.width, canvas.height);
-    
-    setupWorkMode(canvas);
-  });
+    canvas.width = Math.round(crop.frameWidth * scaleRatio);
+    canvas.height = Math.round(crop.frameHeight * scaleRatio);
 
-  function setupWorkMode(croppedCanvas) {
-    const imageCanvas = document.getElementById('imageCanvas');
-    const guideCanvas = document.getElementById('guideCanvas');
-    const workWorkspace = document.getElementById('workWorkspace');
-    
-    workMode.style.display = 'flex';
-    
-    setTimeout(() => {
-      const containerW = workWorkspace.clientWidth;
-      const containerH = workWorkspace.clientHeight;
-      
-      let canvasW, canvasH;
-      if (containerW / containerH > NAIL_RATIO) {
-        canvasH = containerH;
-        canvasW = canvasH * NAIL_RATIO;
-      } else {
-        canvasW = containerW;
-        canvasH = canvasW / NAIL_RATIO;
-      }
-      
-      imageCanvas.width = guideCanvas.width = canvasW;
-      imageCanvas.height = guideCanvas.height = canvasH;
-      
-      imageCanvas.style.width = canvasW + 'px';
-      imageCanvas.style.height = canvasH + 'px';
-      guideCanvas.style.width = canvasW + 'px';
-      guideCanvas.style.height = canvasH + 'px';
-      
-      imageCanvas.style.left = ((containerW - canvasW) / 2) + 'px';
-      guideCanvas.style.left = ((containerW - canvasW) / 2) + 'px';
-      
-      const imgCtx = imageCanvas.getContext('2d');
-      imgCtx.fillStyle = '#000';
-      imgCtx.fillRect(0, 0, canvasW, canvasH);
-      
-      const imgRatio = croppedCanvas.width / croppedCanvas.height;
-      const canvasRatio = canvasW / canvasH;
-      
-      let drawWidth, drawHeight, drawX, drawY;
-      
-      if (imgRatio > canvasRatio) {
-        drawHeight = canvasH;
-        drawWidth = drawHeight * imgRatio;
-        drawX = (canvasW - drawWidth) / 2;
-        drawY = 0;
-      } else {
-        drawWidth = canvasW;
-        drawHeight = drawWidth / imgRatio;
-        drawX = 0;
-        drawY = (canvasH - drawHeight) / 2;
-      }
-      
-      imgCtx.drawImage(croppedCanvas, 0, 0, croppedCanvas.width, croppedCanvas.height,
-        drawX, drawY, drawWidth, drawHeight);
-      
-      cropMode.style.display = 'none';
-      requestDraw();
-    }, 100);
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(
+      state.originalImage,
+      Math.round(crop.frameX * scaleRatio),
+      Math.round(crop.frameY * scaleRatio),
+      canvas.width,
+      canvas.height,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    state.croppedCanvas = canvas;
+    setupWorkMode();
   }
 
-  document.getElementById('backToWelcome').addEventListener('click', () => {
-    if (confirm('¿Reiniciar?')) location.reload();
-  });
+  function setupWorkMode() {
+    showWorkMode();
+    setSettingsOpen(false);
+    requestAnimationFrame(drawImageCanvas);
+  }
 
-  document.getElementById('toggleSettings').addEventListener('click', () => {
-    panel.classList.toggle('open');
-  });
-  
-  document.getElementById('closeSettings').addEventListener('click', () => {
-    panel.classList.remove('open');
-  });
+  function drawImageCanvas() {
+    const sourceCanvas = state.croppedCanvas;
+    if (!sourceCanvas) return;
 
-  document.getElementById('circleSlider').addEventListener('input', (e) => {
-    circleCount = parseInt(e.target.value);
-    document.getElementById('circleCount').textContent = circleCount;
-    requestDraw();
-  });
+    const imageCanvas = $('imageCanvas');
+    const guideCanvas = $('guideCanvas');
+    const workspace = $('workWorkspace');
+    const containerW = workspace.clientWidth;
+    const containerH = workspace.clientHeight;
+    let canvasW;
+    let canvasH;
 
-  const guideCanvas = document.getElementById('guideCanvas');
-  
-  document.getElementById('moveGuideBtn').addEventListener('click', function() {
-    isMovingGuide = !isMovingGuide;
-    this.classList.toggle('active');
-    this.textContent = isMovingGuide ? '📍 Fijar' : '✋ Mover Guías';
-  });
+    if (containerW / containerH > NAIL_RATIO) {
+      canvasH = containerH;
+      canvasW = canvasH * NAIL_RATIO;
+    } else {
+      canvasW = containerW;
+      canvasH = canvasW / NAIL_RATIO;
+    }
 
-  guideCanvas.addEventListener('touchstart', (e) => {
-    if (!isMovingGuide) return;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  });
-  
-  guideCanvas.addEventListener('touchmove', (e) => {
-    if (!isMovingGuide) return;
-    e.preventDefault();
-    guideOffsetX += e.touches[0].clientX - lastTouchX;
-    guideOffsetY += e.touches[0].clientY - lastTouchY;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-    requestDraw();
-  });
+    [imageCanvas, guideCanvas].forEach((canvas) => {
+      canvas.width = Math.round(canvasW);
+      canvas.height = Math.round(canvasH);
+      canvas.style.width = `${canvasW}px`;
+      canvas.style.height = `${canvasH}px`;
+      canvas.style.left = `${(containerW - canvasW) / 2}px`;
+      canvas.style.top = `${(containerH - canvasH) / 2}px`;
+    });
 
-  document.getElementById('resetGuidesBtn').addEventListener('click', () => {
-    guideOffsetX = 0;
-    guideOffsetY = 0;
-    requestDraw();
-  });
+    const ctx = imageCanvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, imageCanvas.width, imageCanvas.height);
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(sourceCanvas, 0, 0, imageCanvas.width, imageCanvas.height);
+    requestGuideDraw();
+  }
 
-  document.getElementById('lineWidth').addEventListener('input', (e) => {
-    document.getElementById('lineWidthValue').textContent = e.target.value;
-    requestDraw();
-  });
-  
-  document.getElementById('opacity').addEventListener('input', (e) => {
-    document.getElementById('opacityValue').textContent = e.target.value + '%';
-    requestDraw();
-  });
-  
-  document.getElementById('lineColor').addEventListener('input', () => {
-    requestDraw();
-  });
+  function bindGuidePointerEvents() {
+    const canvas = $('guideCanvas');
+
+    canvas.addEventListener('pointerdown', (event) => {
+      if (!state.guide.moving) return;
+      event.preventDefault();
+      state.guide.dragging = true;
+      state.guide.lastX = event.clientX;
+      state.guide.lastY = event.clientY;
+      canvas.setPointerCapture?.(event.pointerId);
+    });
+
+    canvas.addEventListener('pointermove', (event) => {
+      if (!state.guide.moving || !state.guide.dragging) return;
+      event.preventDefault();
+      state.guide.offsetX += event.clientX - state.guide.lastX;
+      state.guide.offsetY += event.clientY - state.guide.lastY;
+      state.guide.lastX = event.clientX;
+      state.guide.lastY = event.clientY;
+      requestGuideDraw();
+    });
+
+    window.addEventListener('pointerup', () => {
+      state.guide.dragging = false;
+    });
+  }
+
+  function toggleMoveMode() {
+    const button = $('moveGuideBtn');
+    state.guide.moving = !state.guide.moving;
+    button.classList.toggle('active', state.guide.moving);
+    button.setAttribute('aria-pressed', String(state.guide.moving));
+    button.textContent = state.guide.moving ? 'Fijar gu\u00edas' : 'Mover gu\u00edas';
+  }
+
+  function resetGuides() {
+    state.guide.offsetX = 0;
+    state.guide.offsetY = 0;
+    requestGuideDraw();
+  }
+
+  function requestGuideDraw() {
+    if (state.drawRequested) return;
+    state.drawRequested = true;
+    requestAnimationFrame(() => {
+      drawGuides();
+      state.drawRequested = false;
+    });
+  }
 
   function drawGuides() {
-    const canvas = document.getElementById('guideCanvas');
+    const canvas = $('guideCanvas');
     const ctx = canvas.getContext('2d');
-    const w = canvas.width, h = canvas.height;
-    if (w === 0 || h === 0) return;
-    
+    const w = canvas.width;
+    const h = canvas.height;
+    if (!w || !h) return;
+
     ctx.clearRect(0, 0, w, h);
-    
-    const color = document.getElementById('lineColor').value;
-    const opacity = document.getElementById('opacity').value / 100;
-    const lineWidthVal = parseInt(document.getElementById('lineWidth').value);
-    
-    const offsetX = guideOffsetX;
-    const offsetY = guideOffsetY;
-    
-    const centerX = w/2 + offsetX;
-    const centerY = h/2 + offsetY;
-    
-    const usableHeight = h * 0.8;
-    const spacing = usableHeight / (circleCount + 1);
+
+    const color = $('lineColor').value;
+    const opacity = Number($('opacity').value) / 100;
+    const lineWidth = Number($('lineWidth').value);
+    const centerX = w / 2 + state.guide.offsetX;
+    const centerY = h / 2 + state.guide.offsetY;
+    const spacing = (h * 0.8) / (state.guide.circleCount + 1);
     const radius = spacing * 0.45;
-    const startY = centerY - ((circleCount - 1) * spacing) / 2;
-    
-    // =============================
-    // LÍNEAS VERTICALES (3 líneas: centro + bordes de círculo)
-    // =============================
-    
-    ctx.setLineDash([6, 6]);
-    ctx.lineWidth = lineWidthVal;
+    const startY = centerY - ((state.guide.circleCount - 1) * spacing) / 2;
+    const centers = [];
+
+    ctx.save();
     ctx.strokeStyle = color;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.globalAlpha = opacity;
-    
-    [centerX, centerX - radius, centerX + radius].forEach(x => {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    });
-    
-    // =============================
-    // CÍRCULOS
-    // =============================
-    
+    ctx.lineWidth = lineWidth;
     ctx.setLineDash([6, 6]);
-    
-    let centers = [];
-    
-    for (let i = 0; i < circleCount; i++) {
+
+    [centerX, centerX - radius, centerX + radius].forEach((x) => drawLine(ctx, x, 0, x, h));
+
+    for (let i = 0; i < state.guide.circleCount; i += 1) {
       const y = startY + i * spacing;
-      
       centers.push({ x: centerX, y });
-      
       ctx.beginPath();
       ctx.arc(centerX, y, radius, 0, Math.PI * 2);
       ctx.stroke();
     }
-    
-    // =============================
-    // DIÁMETROS HORIZONTALES
-    // =============================
-    
+
     ctx.setLineDash([]);
-    ctx.lineWidth = lineWidthVal * 0.8;
+    ctx.lineWidth = Math.max(1, lineWidth * 0.8);
     ctx.globalAlpha = opacity * 0.9;
-    
-    centers.forEach(c => {
-      ctx.beginPath();
-      ctx.moveTo(centerX - radius, c.y);
-      ctx.lineTo(centerX + radius, c.y);
-      ctx.stroke();
-    });
-    
-    // =============================
-    // ROMBOS LIMPIOS (Diamante superior + inferior entre cada par)
-    // =============================
-    
-    for (let i = 0; i < centers.length - 1; i++) {
-      const curr = centers[i];
+    centers.forEach((center) => drawLine(ctx, centerX - radius, center.y, centerX + radius, center.y));
+
+    for (let i = 0; i < centers.length - 1; i += 1) {
+      const current = centers[i];
       const next = centers[i + 1];
-      
-      // Diamante superior (V invertida: bordes de arriba → centro de abajo)
-      ctx.beginPath();
-      ctx.moveTo(centerX - radius, curr.y);
-      ctx.lineTo(centerX, next.y);
-      ctx.lineTo(centerX + radius, curr.y);
-      ctx.stroke();
-      
-      // Diamante inferior (V: centro de arriba → bordes de abajo)
-      ctx.beginPath();
-      ctx.moveTo(centerX - radius, next.y);
-      ctx.lineTo(centerX, curr.y);
-      ctx.lineTo(centerX + radius, next.y);
-      ctx.stroke();
+      drawPolyline(ctx, [[centerX - radius, current.y], [centerX, next.y], [centerX + radius, current.y]]);
+      drawPolyline(ctx, [[centerX - radius, next.y], [centerX, current.y], [centerX + radius, next.y]]);
     }
-    
-    ctx.globalAlpha = 1;
+
+    ctx.restore();
   }
 
-  document.getElementById('downloadBtn').addEventListener('click', () => {
-    const canvas = document.createElement('canvas');
-    const imgC = document.getElementById('imageCanvas');
-    const guideC = document.getElementById('guideCanvas');
-    canvas.width = imgC.width;
-    canvas.height = imgC.height;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(imgC, 0, 0);
-    ctx.drawImage(guideC, 0, 0);
-    
-    canvas.toBlob((blob) => {
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.download = `guia-${Date.now()}.png`;
-      a.href = url;
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-  });
-});
+  function drawLine(ctx, x1, y1, x2, y2) {
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
 
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('SW registrado:', reg.scope))
-      .catch(err => console.log('Error SW:', err));
-  });
-}
+  function drawPolyline(ctx, points) {
+    ctx.beginPath();
+    ctx.moveTo(points[0][0], points[0][1]);
+    points.slice(1).forEach(([x, y]) => ctx.lineTo(x, y));
+    ctx.stroke();
+  }
+
+  function downloadComposite() {
+    const imageCanvas = $('imageCanvas');
+    const guideCanvas = $('guideCanvas');
+    if (!imageCanvas.width || !guideCanvas.width) return;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = imageCanvas.width;
+    canvas.height = imageCanvas.height;
+
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(imageCanvas, 0, 0);
+    ctx.drawImage(guideCanvas, 0, 0);
+
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        window.alert('No se pudo preparar la descarga.');
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `guia-ballerina-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }, 'image/png');
+  }
+
+  function setSettingsOpen(isOpen) {
+    const panel = $('settingsPanel');
+    panel.classList.toggle('open', isOpen);
+    panel.setAttribute('aria-hidden', String(!isOpen));
+    $('toggleSettings').setAttribute('aria-expanded', String(isOpen));
+  }
+
+  function handleResize() {
+    if (!$('cropMode').hidden) initializeCropMode();
+    if (!$('workMode').hidden) drawImageCanvas();
+  }
+
+  function registerServiceWorker() {
+    if (!('serviceWorker' in navigator)) return;
+
+    window.addEventListener('load', () => {
+      const swUrl = new URL('sw.js', window.location.href);
+      navigator.serviceWorker.register(swUrl, { scope: './' }).catch((error) => {
+        console.warn('No se pudo registrar el service worker:', error);
+      });
+    });
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function debounce(callback, delay) {
+    let timer = 0;
+    return (...args) => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => callback(...args), delay);
+    };
+  }
+})();
