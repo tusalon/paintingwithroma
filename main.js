@@ -439,6 +439,9 @@
   function resetGuides() {
     state.guide.offsetX = 0;
     state.guide.offsetY = 0;
+    state.guide.scale = 1;
+    state.guide.rotation = 0;
+    syncGuideTransformControls();
     requestGuideDraw();
   }
 
@@ -515,7 +518,7 @@
     const lineWidth = Number($('lineWidth').value);
     const centerX = w / 2 + state.guide.offsetX;
     const centerY = h / 2 + state.guide.offsetY;
-    const baseHeight = Math.min(h * 0.88, (w * 0.9) / NAIL_RATIO);
+    const baseHeight = Math.min(h, w / NAIL_RATIO);
     const guideHeight = baseHeight * state.guide.scale;
     const guideWidth = guideHeight * NAIL_RATIO;
     const topY = -guideHeight / 2;
@@ -524,33 +527,35 @@
     const rightX = guideWidth / 2;
     const frame = {
       topLeft: [leftX, topY],
-      topRight: [rightX, topY + guideHeight * 0.025],
-      bottomRight: [rightX * 0.96, bottomY],
-      bottomLeft: [leftX * 0.94, bottomY - guideHeight * 0.025]
+      topRight: [rightX, topY],
+      bottomRight: [rightX, bottomY],
+      bottomLeft: [leftX, bottomY]
     };
     const circleTotal = state.guide.circleCount;
-    const spacing = guideHeight / (circleTotal + 1);
-    const radius = spacing * 0.62;
+    const spacing = guideHeight / circleTotal;
+    const radius = Math.min(spacing * 0.62, guideWidth * 0.58);
     const circles = [];
+    const horizontalLevels = circleTotal * 2 + 2;
 
     for (let i = 0; i < circleTotal; i += 1) {
-      const t = circleTotal === 1 ? 0 : i / (circleTotal - 1);
       circles.push({
-        x: lerp(guideWidth * 0.16, -guideWidth * 0.16, t),
-        y: bottomY - spacing * (i + 1),
+        x: 0,
+        y: bottomY - spacing * (i + 0.5),
         r: radius
       });
     }
 
-    const anchors = [
+    const frameAnchors = [
       frame.topLeft,
-      [0, topY + guideHeight * 0.02],
+      [0, topY],
       frame.topRight,
-      [rightX, -guideHeight * 0.16],
-      [leftX, -guideHeight * 0.08],
-      [rightX * 0.95, guideHeight * 0.08],
-      [leftX * 0.82, guideHeight * 0.24],
-      [0, bottomY - guideHeight * 0.02],
+      [rightX, -guideHeight * 0.25],
+      [rightX, guideHeight * 0.05],
+      [rightX, guideHeight * 0.35],
+      [0, bottomY],
+      [leftX, guideHeight * 0.35],
+      [leftX, guideHeight * 0.05],
+      [leftX, -guideHeight * 0.25],
       frame.bottomRight,
       frame.bottomLeft
     ];
@@ -580,15 +585,25 @@
     ctx.fillStyle = '#0b68ff';
     ctx.lineWidth = Math.max(1.1, lineWidth * 0.85);
 
+    for (let i = 1; i < horizontalLevels; i += 1) {
+      const y = lerp(topY, bottomY, i / horizontalLevels);
+      drawLine(ctx, leftX, y, rightX, y);
+    }
+
+    [-0.5, -0.25, 0, 0.25, 0.5].forEach((amount) => {
+      const x = guideWidth * amount;
+      drawLine(ctx, x, topY, x, bottomY);
+    });
+
     circles.forEach((circle) => {
       drawCircle(ctx, circle.x, circle.y, circle.r);
       drawCircle(ctx, circle.x, circle.y, circle.r * 0.5);
     });
 
     circles.forEach((circle, index) => {
-      drawArc(ctx, circle.x, circle.y, circle.r * 1.52, -2.72 + index * 0.25, 0.62 + index * 0.18);
-      anchors.forEach((anchor, anchorIndex) => {
-        if (anchorIndex < 3 || (anchorIndex + index) % 2 === 0) {
+      drawArc(ctx, circle.x, circle.y, circle.r * 1.45, -2.8 + index * 0.22, 0.75 + index * 0.16);
+      frameAnchors.forEach((anchor, anchorIndex) => {
+        if (anchorIndex < 3 || anchorIndex === 6 || (anchorIndex + index) % 2 === 0) {
           drawLine(ctx, circle.x, circle.y, anchor[0], anchor[1]);
         }
       });
@@ -597,13 +612,15 @@
     drawLine(ctx, frame.topLeft[0], frame.topLeft[1], frame.bottomRight[0], frame.bottomRight[1]);
     drawLine(ctx, frame.topRight[0], frame.topRight[1], frame.bottomLeft[0], frame.bottomLeft[1]);
     drawPathThrough(ctx, circles.map((circle) => [circle.x, circle.y]));
-    drawLine(ctx, leftX, -guideHeight * 0.02, rightX, guideHeight * 0.04);
-    drawLine(ctx, leftX * 0.45, topY, rightX * 0.22, bottomY);
-    drawLine(ctx, rightX * 0.72, topY, rightX * 0.34, bottomY);
+    drawLine(ctx, leftX, 0, rightX, 0);
+    drawLine(ctx, leftX * 0.5, topY, rightX * 0.5, bottomY);
+    drawLine(ctx, rightX * 0.5, topY, leftX * 0.5, bottomY);
+    drawLine(ctx, leftX, bottomY - spacing * 0.5, rightX, topY + spacing * 0.5);
+    drawLine(ctx, rightX, bottomY - spacing * 0.5, leftX, topY + spacing * 0.5);
 
     ctx.globalAlpha = Math.min(1, opacity + 0.16);
     circles.forEach((circle) => drawDot(ctx, circle.x, circle.y, lineWidth * 1.45));
-    anchors.forEach((anchor, index) => {
+    frameAnchors.forEach((anchor, index) => {
       if (index % 2 === 0) drawDot(ctx, anchor[0], anchor[1], lineWidth * 0.8);
     });
 
